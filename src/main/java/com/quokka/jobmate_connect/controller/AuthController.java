@@ -10,10 +10,7 @@ import com.quokka.jobmate_connect.dto.response.IntrospectResponse;
 import com.quokka.jobmate_connect.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
 
@@ -23,6 +20,12 @@ import java.text.ParseException;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AuthController {
     AuthenticationService authenticationService;
+
+    @PostMapping("/outbound/authentication")
+    ApiResponse<AuthenticationResponse> outboundAuthentication(@RequestParam("code") String code) {
+        var result = authenticationService.outboundAuthenticate(code);
+        return ApiResponse.success(result);
+    }
 
     @PostMapping("/login")
     ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {

@@ -23,6 +23,7 @@ target/
 .settings/
 
 
+
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
@@ -35,4 +36,5 @@ build/
 
 ### VS Code ###
 .vscode/
-application-*.yaml
+src/main/resources/application.yaml
+

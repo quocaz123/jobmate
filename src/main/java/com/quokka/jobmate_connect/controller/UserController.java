@@ -24,6 +24,11 @@ public class UserController {
         return ApiResponse.success(userService.createUser(request));
     }
 
+    @GetMapping("/my-info")
+    ApiResponse<UserResponse> getMyInfo(){
+        return ApiResponse.success(userService.getMyInfo());
+    }
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
     ApiResponse<List<UserResponse>> getAllUsers() {

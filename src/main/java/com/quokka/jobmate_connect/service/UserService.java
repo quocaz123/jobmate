@@ -5,11 +5,14 @@ import com.quokka.jobmate_connect.dto.request.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.response.UserResponse;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
+import com.quokka.jobmate_connect.exception.AppException;
+import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.UserMapper;
 import com.quokka.jobmate_connect.repository.RoleRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +40,15 @@ public class UserService {
         user.setRoles(roles);
 
         return userMapper.toUserResponse(userRepository.save(user));
+    }
+
+    public UserResponse getMyInfo(){
+        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByEmail(name).orElseThrow(() ->
+                new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return userMapper.toUserResponse(user);
     }
 
     public List<UserResponse> getAllUsers() {
