@@ -1,0 +1,52 @@
+# ------------------------------
+# Common IntelliJ / IDEA
+# ------------------------------
+.idea/
+*.iml
+out/
+
+# ------------------------------
+# Java / Maven
+# ------------------------------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+*.class
+*.log
+
+# ------------------------------
+# OS files
+# ------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------------
+# Logs / Temp
+# ------------------------------
+logs/
+*.log
+*.tmp
+*.bak
+*.swp
+
+# ------------------------------
+# Node / React (frontend)
+# ------------------------------
+jobmate_web/node_modules/
+jobmate_web/build/
+jobmate_web/dist/
+jobmate_web/.env.local
+jobmate_web/.next/
+
+# ------------------------------
+# Misc
+# ------------------------------
+*.env
+*.jar
+*.war
+
+# ------------------------------
+# Ignore local test data
+# ------------------------------
+*.db
+*.sqlite
