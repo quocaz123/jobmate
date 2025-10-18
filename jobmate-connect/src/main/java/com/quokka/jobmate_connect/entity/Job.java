@@ -24,42 +24,56 @@ public class Job {
     @Column(name = "job_id")
     UUID id;
 
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    User user;
-
     @Column(nullable = false, length = 255)
     String title;
 
     @Column(columnDefinition = "TEXT")
     String description;
 
-    @Column
-    BigDecimal salary;
-
     @Column(length = 100)
     String location;
+
+    @Column
+    Double latitude;
+
+    @Column
+    Double longitude;
+
+    @Column(precision = 12, scale = 2)
+    BigDecimal salary;
 
     @Column(length = 100)
     String jobType;
 
-    @Column
+    @Column(name = "start_at")
     LocalDateTime startAt;
 
-    @Column
+    @Column(name = "deadline")
     LocalDateTime deadline;
 
     @Column(columnDefinition = "TEXT")
     String skills;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    JobStatus status = JobStatus.OPEN;
+    @Column(length = 30)
+    JobStatus status;
 
-    @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT NOW()")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    User createdBy;
+
+    @Column(name = "verified_by")
+    UUID verifiedBy;
+
+    @Column(name = "verified_at")
+    LocalDateTime verifiedAt;
+
+    @Column(name = "is_auto_verified")
+    boolean isAutoVerified = false;
+
+    @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "updated_at", columnDefinition = "TIMESTAMP DEFAULT NOW()")
+    @Column(name = "updated_at")
     LocalDateTime updatedAt = LocalDateTime.now();
 }

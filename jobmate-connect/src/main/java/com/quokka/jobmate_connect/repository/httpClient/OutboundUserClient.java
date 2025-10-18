@@ -1,6 +1,6 @@
 package com.quokka.jobmate_connect.repository.httpClient;
 
-import com.quokka.jobmate_connect.dto.response.OutboundResponse;
+import com.quokka.jobmate_connect.dto.response.user.OutboundResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;

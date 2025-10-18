@@ -1,11 +1,13 @@
 package com.quokka.jobmate_connect.configuration;
 
-import org.springframework.web.filter.CorsFilter;
+
+
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -14,9 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import com.quokka.jobmate_connect.configuration.JwtAuthenticationEntryPoint;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 
 @Configuration
 @EnableWebSecurity
@@ -68,5 +68,21 @@ public class SecurityConfig {
         @Bean
         public PasswordEncoder passwordEncoder() {
                 return new BCryptPasswordEncoder();
+        }
+
+        @Bean
+        public RestTemplate restTemplate() {
+                // Dùng factory đơn giản có sẵn trong JDK, không cần httpclient5
+                SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+                factory.setConnectTimeout(10_000);
+                factory.setReadTimeout(10_000);
+
+                RestTemplate restTemplate = new RestTemplate(factory);
+                restTemplate.getInterceptors().add((request, body, execution) -> {
+                        request.getHeaders().add("User-Agent", "JobMateConnect/1.0 (contact@jobmate.com)");
+                        request.getHeaders().add("Accept-Language", "en");
+                        return execution.execute(request, body);
+                });
+                return restTemplate;
         }
 }

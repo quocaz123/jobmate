@@ -1,6 +1,7 @@
-package com.quokka.jobmate_connect.dto.response;
+package com.quokka.jobmate_connect.dto.response.user;
 
 
+import com.quokka.jobmate_connect.dto.response.user.RoleResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -5,10 +5,17 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.quokka.jobmate_connect.dto.request.*;
-import com.quokka.jobmate_connect.dto.response.AuthenticationResponse;
-import com.quokka.jobmate_connect.dto.response.IntrospectResponse;
-import com.quokka.jobmate_connect.dto.response.OutboundResponse;
+import com.quokka.jobmate_connect.dto.request.otp.VerifyOtpRequest;
+import com.quokka.jobmate_connect.dto.request.user.AuthenticationRequest;
+import com.quokka.jobmate_connect.dto.request.user.ExchangeTokenRequest;
+import com.quokka.jobmate_connect.dto.request.user.IntrospectRequest;
+import com.quokka.jobmate_connect.dto.request.user.LogoutRequest;
+import com.quokka.jobmate_connect.dto.response.otp.ResendOtpResponse;
+import com.quokka.jobmate_connect.dto.response.user.AuthenticationResponse;
+import com.quokka.jobmate_connect.dto.response.user.IntrospectResponse;
+import com.quokka.jobmate_connect.dto.request.user.SetPasswordRequest;
+import com.quokka.jobmate_connect.dto.response.user.SetPasswordResponse;
+import com.quokka.jobmate_connect.dto.response.user.OutboundResponse;
 import com.quokka.jobmate_connect.entity.InvalidatedToken;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
@@ -203,6 +210,18 @@ public class AuthenticationService {
             user = userRepository.save(user);
         }
 
+        boolean hasPassword = user.getPassword() != null && !user.getPassword().isEmpty();
+
+        if (!hasPassword) {
+            // User chưa có password, yêu cầu set password
+            return AuthenticationResponse.builder()
+                    .requiresPasswordSetup(true)
+                    .userEmail(user.getEmail())
+                    .userName(user.getFullName())
+                    .message("Please set up your password to complete registration.")
+                    .build();
+        }
+
         var token = generateToken(user);
 
         return AuthenticationResponse.builder()
@@ -274,6 +293,56 @@ public class AuthenticationService {
         return AuthenticationResponse.builder()
                 .token(token)
                 .isTwoFaEnabled(true)
+                .build();
+    }
+
+    public ResendOtpResponse resendOtp(String userId) {
+        var user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String otp = otpService.resendOtp(userId);
+
+        otpEventProducer.sendOtpEvent(SendOtpEvent.builder()
+                .email(user.getEmail())
+                .otp(otp)
+                .timestamp(LocalDateTime.now())
+                .build());
+
+        return ResendOtpResponse.builder()
+                .message("OTP has been resent to your email.")
+                .otpExpiryTime(180L)
+                .build();
+    }
+
+    public SetPasswordResponse setPassword(String userId, SetPasswordRequest request) {
+        // Validate password confirmation
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_MISMATCH);
+        }
+
+        if (request.getPassword().length() < 8) {
+            throw new AppException(ErrorCode.PASSWORD_TOO_SHORT);
+        }
+
+        if (request.getPassword().length() > 50) {
+            throw new AppException(ErrorCode.PASSWORD_TOO_LONG);
+        }
+
+        var user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            throw new AppException(ErrorCode.PASSWORD_ALREADY_SET);
+        }
+
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        userRepository.save(user);
+
+        return SetPasswordResponse.builder()
+                .message("Password set successfully!")
+                .success(true)
+                .redirectUrl("/dashboard")
                 .build();
     }
 

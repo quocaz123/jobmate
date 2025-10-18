@@ -7,7 +7,6 @@ import lombok.experimental.FieldDefaults;
 import java.util.Set;
 import java.util.UUID;
 
-
 @Entity
 @Table(name = "users")
 @Getter
@@ -33,14 +32,20 @@ public class User {
     @Column
     String phoneNumber;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    Set<Role> roles;
+    @Column
+    String address;
 
     @Column
+    double latitude;
+
+    @Column
+    double longitude;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
+    Set<Role> roles;
+
+    @Column(name = "is_two_fa_enabled", nullable = false, columnDefinition = "boolean default false")
     boolean is_two_fa_enabled = false;
+
 }

@@ -1,8 +1,8 @@
 package com.quokka.jobmate_connect.service;
 
-import com.quokka.jobmate_connect.dto.ApiResponse;
-import com.quokka.jobmate_connect.dto.request.UserCreationRequest;
-import com.quokka.jobmate_connect.dto.response.UserResponse;
+import com.quokka.jobmate_connect.dto.PageResponse;
+import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
+import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
@@ -12,6 +12,10 @@ import com.quokka.jobmate_connect.repository.RoleRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -51,9 +55,22 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
-    public List<UserResponse> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        return users.stream().map(userMapper::toUserResponse).toList();
+    public PageResponse<UserResponse> getAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<User> userPage = userRepository.findAll(pageable);
+
+        List<UserResponse> userResponses = userPage.getContent()
+                .stream()
+                .map(userMapper::toUserResponse)
+                .toList();
+
+        return PageResponse.<UserResponse>builder()
+                .currentPage(userPage.getNumber() + 1)
+                .totalElements(userPage.getTotalElements())
+                .pageSize(userPage.getSize())
+                .totalElements(userPage.getTotalElements())
+                .data(userResponses)
+                .build();
     }
 
     public UserResponse getUserById(UUID id) {

@@ -1,4 +1,4 @@
-package com.quokka.jobmate_connect.dto.request;
+package com.quokka.jobmate_connect.dto.request.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthenticationRequest {
+public class UserUpdateRequest {
     String email;
     String password;
+    String fullName;
+    String phoneNumber;
 }

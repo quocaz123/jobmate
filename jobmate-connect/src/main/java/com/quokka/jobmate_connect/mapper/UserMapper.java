@@ -1,8 +1,8 @@
 package com.quokka.jobmate_connect.mapper;
 
-import com.quokka.jobmate_connect.dto.request.UserCreationRequest;
-import com.quokka.jobmate_connect.dto.request.UserUpdateRequest;
-import com.quokka.jobmate_connect.dto.response.UserResponse;
+import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
+import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
+import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.entity.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

@@ -1,4 +1,4 @@
-package com.quokka.jobmate_connect.dto.response.JobResponse;
+package com.quokka.jobmate_connect.dto.response.job;
 
 import com.quokka.jobmate_connect.constant.JobStatus;
 import lombok.AllArgsConstructor;
@@ -16,16 +16,17 @@ import java.util.UUID;
 @AllArgsConstructor
 public class JobResponse {
     UUID id;
-    String name;
     String title;
     String description;
-    BigDecimal salary;
     String location;
+    Double latitude;
+    Double longitude;
+    BigDecimal salary;
     String jobType;
-    LocalDateTime startAt;
-    LocalDateTime deadline;
     String skills;
     JobStatus status;
+    String createdByName;
     LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+    LocalDateTime deadline;
+    Double distance;
 }

@@ -1,4 +1,4 @@
-package com.quokka.jobmate_connect.dto.request;
+package com.quokka.jobmate_connect.dto.request.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

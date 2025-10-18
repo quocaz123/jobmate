@@ -53,6 +53,7 @@
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
+
 		<!-- JPA + Database -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

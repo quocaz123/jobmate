@@ -1,8 +1,9 @@
 package com.quokka.jobmate_connect.controller;
 
 import com.quokka.jobmate_connect.dto.ApiResponse;
-import com.quokka.jobmate_connect.dto.request.UserCreationRequest;
-import com.quokka.jobmate_connect.dto.response.UserResponse;
+import com.quokka.jobmate_connect.dto.PageResponse;
+import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
+import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -31,8 +32,12 @@ public class UserController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
-    ApiResponse<List<UserResponse>> getAllUsers() {
-        return ApiResponse.success(userService.getAllUsers());
+    ApiResponse<PageResponse<UserResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        var results = userService.getAllUsers(page, size);
+        return ApiResponse.success(results);
     }
 
     @GetMapping("/{id}")

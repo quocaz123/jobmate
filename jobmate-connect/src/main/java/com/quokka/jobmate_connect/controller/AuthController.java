@@ -2,12 +2,16 @@ package com.quokka.jobmate_connect.controller;
 
 import com.nimbusds.jose.JOSEException;
 import com.quokka.jobmate_connect.dto.ApiResponse;
-import com.quokka.jobmate_connect.dto.request.AuthenticationRequest;
-import com.quokka.jobmate_connect.dto.request.IntrospectRequest;
-import com.quokka.jobmate_connect.dto.request.LogoutRequest;
-import com.quokka.jobmate_connect.dto.request.VerifyOtpRequest;
-import com.quokka.jobmate_connect.dto.response.AuthenticationResponse;
-import com.quokka.jobmate_connect.dto.response.IntrospectResponse;
+import com.quokka.jobmate_connect.dto.request.user.AuthenticationRequest;
+import com.quokka.jobmate_connect.dto.request.user.IntrospectRequest;
+import com.quokka.jobmate_connect.dto.request.user.LogoutRequest;
+import com.quokka.jobmate_connect.dto.request.otp.VerifyOtpRequest;
+import com.quokka.jobmate_connect.dto.request.otp.ResendOtpRequest;
+import com.quokka.jobmate_connect.dto.request.user.SetPasswordRequest;
+import com.quokka.jobmate_connect.dto.response.user.AuthenticationResponse;
+import com.quokka.jobmate_connect.dto.response.user.IntrospectResponse;
+import com.quokka.jobmate_connect.dto.response.otp.ResendOtpResponse;
+import com.quokka.jobmate_connect.dto.response.user.SetPasswordResponse;
 import com.quokka.jobmate_connect.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -54,6 +58,19 @@ public class AuthController {
     @PostMapping("/verify-otp")
     ApiResponse<AuthenticationResponse> verifyOtp(@RequestBody VerifyOtpRequest request) {
         var result = authenticationService.verifyOtp(request);
+        return ApiResponse.success(result);
+    }
+
+    @PostMapping("/resend-otp")
+    ApiResponse<ResendOtpResponse> resendOtp(@RequestBody ResendOtpRequest request) {
+        var result = authenticationService.resendOtp(request.getUserId());
+        return ApiResponse.success(result);
+    }
+
+    @PostMapping("/set-password")
+    ApiResponse<SetPasswordResponse> setPassword(@RequestParam("userId") String userId,
+            @RequestBody SetPasswordRequest request) {
+        var result = authenticationService.setPassword(userId, request);
         return ApiResponse.success(result);
     }
 }

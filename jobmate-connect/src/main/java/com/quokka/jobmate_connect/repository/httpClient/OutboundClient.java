@@ -1,7 +1,7 @@
 package com.quokka.jobmate_connect.repository.httpClient;
 
-import com.quokka.jobmate_connect.dto.request.ExchangeTokenRequest;
-import com.quokka.jobmate_connect.dto.response.ExchangeTokenRespone;
+import com.quokka.jobmate_connect.dto.request.user.ExchangeTokenRequest;
+import com.quokka.jobmate_connect.dto.response.user.ExchangeTokenRespone;
 import feign.QueryMap;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;

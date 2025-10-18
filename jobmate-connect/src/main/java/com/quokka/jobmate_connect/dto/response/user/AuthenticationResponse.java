@@ -1,4 +1,4 @@
-package com.quokka.jobmate_connect.dto.response;
+package com.quokka.jobmate_connect.dto.response.user;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -17,4 +17,7 @@ public class AuthenticationResponse {
     String message;
     Long otpExpiryTime;
     String userId;
+    boolean requiresPasswordSetup; // Cần set password
+    String userEmail; // Email để hiển thị
+    String userName; // Tên user để hiển thị
 }
