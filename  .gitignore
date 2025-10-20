@@ -50,3 +50,4 @@ jobmate_web/.next/
 # ------------------------------
 *.db
 *.sqlite
+jobmate_web/
