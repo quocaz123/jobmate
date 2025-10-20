@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.response.user.UserResponse;
@@ -42,6 +43,7 @@ public class UserService {
         roleRepository.findByName("USER").ifPresent(roles::add);
 
         user.setRoles(roles);
+        user.setVerificationStatus(VerificationStatus.UNVERIFIED);
 
         return userMapper.toUserResponse(userRepository.save(user));
     }
@@ -65,7 +67,7 @@ public class UserService {
                 .toList();
 
         return PageResponse.<UserResponse>builder()
-                .currentPage(userPage.getNumber() + 1)
+                .currentPage(userPage.getNumber())
                 .totalElements(userPage.getTotalElements())
                 .pageSize(userPage.getSize())
                 .totalElements(userPage.getTotalElements())

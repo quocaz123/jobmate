@@ -1,8 +1,7 @@
 package com.quokka.jobmate_connect.configuration;
 
-
-
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -17,9 +16,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
-
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
         @Autowired
@@ -59,6 +58,7 @@ public class SecurityConfig {
         JwtAuthenticationConverter jwtAuthenticationConverter() {
                 JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
                 grantedAuthoritiesConverter.setAuthorityPrefix("");
+                grantedAuthoritiesConverter.setAuthoritiesClaimName("scope");
 
                 JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
                 converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
