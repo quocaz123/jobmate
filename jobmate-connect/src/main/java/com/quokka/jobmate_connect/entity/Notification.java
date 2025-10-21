@@ -1,6 +1,6 @@
-package com.quokka.Notification_Service.entity;
+package com.quokka.jobmate_connect.entity;
 
-import com.quokka.Notification_Service.constant.NotificationType;
+import com.quokka.jobmate_connect.constant.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -21,7 +21,7 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     UUID userId;
 
     @Column
@@ -37,8 +37,7 @@ public class Notification {
     boolean isRead;
 
     @Column
-    LocalDateTime createdAt = LocalDateTime.now();
-
+    LocalDateTime createdAt;
 
 
 }

@@ -1,13 +1,14 @@
-package com.quokka.Notification_Service.controller;
+package com.quokka.jobmate_connect.controller;
 
-import com.quokka.Notification_Service.dto.ApiResponse;
-import com.quokka.Notification_Service.dto.request.NotificationRequest;
-import com.quokka.Notification_Service.dto.response.NotificationResponse;
-import com.quokka.Notification_Service.service.NotificationService;
+
+import com.quokka.jobmate_connect.dto.ApiResponse;
+import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
+import com.quokka.jobmate_connect.dto.response.notification.NotificationResponse;
+import com.quokka.jobmate_connect.service.NotificationService;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class NotificationController {
     NotificationService notificationService;
 

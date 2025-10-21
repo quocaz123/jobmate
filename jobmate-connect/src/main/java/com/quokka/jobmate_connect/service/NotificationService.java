@@ -1,17 +1,19 @@
-package com.quokka.Notification_Service.service;
+package com.quokka.jobmate_connect.service;
 
-import com.quokka.Notification_Service.dto.request.NotificationRequest;
-import com.quokka.Notification_Service.dto.response.NotificationResponse;
-import com.quokka.Notification_Service.entity.Notification;
-import com.quokka.Notification_Service.mapper.NotificationMapper;
-import com.quokka.Notification_Service.repository.NotificationRepository;
+import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
+import com.quokka.jobmate_connect.dto.response.notification.NotificationResponse;
+import com.quokka.jobmate_connect.entity.Notification;
+import com.quokka.jobmate_connect.mapper.NotificationMapper;
+import com.quokka.jobmate_connect.repository.NotificationRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,8 +21,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class NotificationService {
-    NotificationRepository notificationRepository;;
+    NotificationRepository notificationRepository;
     NotificationMapper notificationMapper;
 
     public NotificationResponse sendNotification(NotificationRequest request) {
@@ -38,11 +41,9 @@ public class NotificationService {
         return notificationMapper.toNotificationResponse(notification);
     }
 
-    public List<NotificationResponse> getNotificationsByUserId(){
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        Jwt jwt = (Jwt) auth.getPrincipal();
-        UUID userId = jwt.getClaim("userId");
-
+    public List<NotificationResponse> getNotificationsByUserId() {
+        var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID userId = UUID.fromString(jwt.getClaim("userId").toString());
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(notificationMapper::toNotificationResponse)
                 .toList();

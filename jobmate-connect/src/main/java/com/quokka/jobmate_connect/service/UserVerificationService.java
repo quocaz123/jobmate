@@ -1,13 +1,20 @@
 package com.quokka.jobmate_connect.service;
 
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
+import com.quokka.jobmate_connect.constant.NotificationType;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
+import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationDetailResponse;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationListResponse;
+import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
+import com.quokka.jobmate_connect.kafka.dto.VerificationRequestEvent;
+import com.quokka.jobmate_connect.kafka.dto.VerificationResultEvent;
+import com.quokka.jobmate_connect.kafka.topic.VerificationEventProducer;
+import com.quokka.jobmate_connect.kafka.topic.VerificationResultProducer;
 import com.quokka.jobmate_connect.repository.FileMgtRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -33,7 +40,9 @@ public class UserVerificationService {
     UserRepository userRepository;
     FileMgtRepository fileMgtRepository;
     S3Service s3Service;
-    FileService fileService;
+    NotificationService notificationService;
+    VerificationEventProducer verificationEventProducer;
+    VerificationResultProducer verificationResultProducer;
 
     public void requestVerification() {
         var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -53,11 +62,31 @@ public class UserVerificationService {
         user.setVerificationRequestedAt(LocalDateTime.now());
         user.setRejectionReason(null);
         userRepository.save(user);
+
+        List<UUID> adminIds = userRepository.findAdminIds();
+
+        for(UUID admin : adminIds) {
+            notificationService.sendNotification(NotificationRequest.builder()
+                            .userId(admin)
+                            .title("Có yêu cầu xác thực mới")
+                            .message("Người dùng " + user.getFullName() + " đã gửi yêu cầu xác thực tài khoản.")
+                            .type(NotificationType.SYSTEM)
+                    .build());
+        }
+
+
+        verificationEventProducer.sendVerificationRequestEvent(
+                VerificationRequestEvent.builder()
+                        .userId(userId)
+                        .email(user.getEmail())
+                        .fullName(user.getFullName())
+                        .requestedAt(user.getVerificationRequestedAt())
+                        .build());
     }
 
     public PageResponse<UserVerificationListResponse> getPendingUsers(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("verificationRequestedAt").descending());
-        Page<User> pendingUsers  = userRepository.findByVerificationStatus(VerificationStatus.PENDING);
+        Page<User> pendingUsers = userRepository.findByVerificationStatus(VerificationStatus.PENDING, pageable);
 
         List<UserVerificationListResponse> userResponse = pendingUsers.getContent().stream()
                 .map(user -> UserVerificationListResponse.builder()
@@ -79,8 +108,7 @@ public class UserVerificationService {
     }
 
     public UserVerificationDetailResponse getVerificationDetail(UUID userId) {
-        var user = userRepository.findById(userId).orElseThrow(() ->
-                new AppException(ErrorCode.USER_NOT_FOUND));
+        var user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         var frontFile = fileMgtRepository.findByOwnerIdAndType(user.getId(), FileTypeStatus.CCCD_FRONT).orElse(null);
         var backFile = fileMgtRepository.findByOwnerIdAndType(user.getId(), FileTypeStatus.CCCD_BACK).orElse(null);
@@ -118,6 +146,22 @@ public class UserVerificationService {
             }
             fileMgtRepository.delete(file);
         }
+
+        notificationService.sendNotification(NotificationRequest.builder()
+                .userId(userId)
+                .title("Xác thực tài khoản thành công")
+                .message("Tài khoản của bạn đã được xác thực thành công. Chào mừng bạn đến với cộng đồng JobMate Connect!")
+                .type(NotificationType.SYSTEM)
+                .build());
+
+        verificationResultProducer.sendVerificationResultEvent(
+                VerificationResultEvent.builder()
+                        .userId(userId)
+                        .email(user.getEmail())
+                        .fullName(user.getFullName())
+                        .isApproved(true)
+                        .processedAt(LocalDateTime.now())
+                        .build());
     }
 
     @Transactional
@@ -127,5 +171,22 @@ public class UserVerificationService {
         user.setVerificationStatus(VerificationStatus.REJECTED);
         user.setRejectionReason(reason);
         userRepository.save(user);
+
+        notificationService.sendNotification(NotificationRequest.builder()
+                .userId(userId)
+                .title("Xác thực tài khoản thất bại")
+                .message("Yêu cầu xác thực tài khoản của bạn đã bị từ chối. Lý do: " + reason)
+                .type(NotificationType.SYSTEM)
+                .build());
+
+        verificationResultProducer.sendVerificationResultEvent(
+                VerificationResultEvent.builder()
+                        .userId(userId)
+                        .email(user.getEmail())
+                        .fullName(user.getFullName())
+                        .isApproved(false)
+                        .reason(reason)
+                        .processedAt(LocalDateTime.now())
+                        .build());
     }
 }
