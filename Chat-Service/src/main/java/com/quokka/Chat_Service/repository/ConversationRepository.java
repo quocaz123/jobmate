@@ -14,4 +14,7 @@ public interface ConversationRepository extends MongoRepository<Conversation, St
 
     @Query("{ 'participants.userId': ?0 }")
     List<Conversation> findAllByParticipantIdsContains(String userId);
+
+    @Query("{ 'participants.userId': ?0, 'participants.fullName': { $regex: ?1, $options: 'i' } }")
+    List<Conversation> searchByParticipantName(String userId, String keyword);
 }

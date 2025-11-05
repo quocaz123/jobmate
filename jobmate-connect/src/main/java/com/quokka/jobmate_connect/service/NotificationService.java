@@ -1,10 +1,12 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.NotificationType;
 import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
 import com.quokka.jobmate_connect.dto.response.notification.NotificationResponse;
 import com.quokka.jobmate_connect.entity.Notification;
 import com.quokka.jobmate_connect.mapper.NotificationMapper;
 import com.quokka.jobmate_connect.repository.NotificationRepository;
+import com.quokka.jobmate_connect.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,6 +27,9 @@ import java.util.UUID;
 public class NotificationService {
     NotificationRepository notificationRepository;
     NotificationMapper notificationMapper;
+    UserRepository userRepository;
+
+
 
     public NotificationResponse sendNotification(NotificationRequest request) {
         Notification notification = Notification.builder()
@@ -41,6 +46,19 @@ public class NotificationService {
         return notificationMapper.toNotificationResponse(notification);
     }
 
+    public void notifyAdmins(String title, String message) {
+        List<UUID> adminIds = userRepository.findAdminIds();
+
+        for(UUID admin : adminIds) {
+            sendNotification(NotificationRequest.builder()
+                    .userId(admin)
+                    .title(title)
+                    .message(message)
+                    .type(NotificationType.SYSTEM)
+                    .build());
+        }
+    }
+
     public List<NotificationResponse> getNotificationsByUserId() {
         var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         UUID userId = UUID.fromString(jwt.getClaim("userId").toString());
@@ -55,4 +73,5 @@ public class NotificationService {
         notification.setRead(true);
         notificationRepository.save(notification);
     }
+
 }

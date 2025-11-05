@@ -1,5 +1,6 @@
 package com.quokka.Chat_Service.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.quokka.Chat_Service.dto.ApiResponse;
 import com.quokka.Chat_Service.dto.request.ChatMessageRequest;
 import com.quokka.Chat_Service.dto.response.ChatMessageResponse;
@@ -19,7 +20,7 @@ public class ChatMessageController {
     ChatMessageService chatMessageService;
 
     @PostMapping("/create")
-    public ApiResponse<ChatMessageResponse> create(@RequestBody ChatMessageRequest request) {
+    public ApiResponse<ChatMessageResponse> create(@RequestBody ChatMessageRequest request) throws JsonProcessingException {
         return ApiResponse.success(chatMessageService.create(request));
     }
 

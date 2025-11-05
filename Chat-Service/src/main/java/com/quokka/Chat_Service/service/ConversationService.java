@@ -84,7 +84,7 @@ public class ConversationService {
                     .type(request.getType())
                     .participantsHash(hash)
                     .participants(participantInfos)
-                    .createDate(Instant.now())
+                    .createdDate(Instant.now())
                     .modifiedDate(Instant.now())
                     .build();
 
@@ -93,6 +93,22 @@ public class ConversationService {
         });
 
         return toResponse(conversation);
+    }
+
+    public List<ConversationResponse> searchConversations(String keyword) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) auth.getPrincipal();
+        String userId = jwt.getClaim("userId");
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return myConversations();
+        }
+
+        var conversations = conversationRepository.searchByParticipantName(userId, keyword);
+
+        return conversations.stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private String generateHash(List<String> ids) {

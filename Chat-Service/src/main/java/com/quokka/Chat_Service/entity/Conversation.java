@@ -27,6 +27,6 @@ public class Conversation {
 
     List<ParticipantInfo> participants;
 
-    Instant createDate;
+    Instant createdDate;
     Instant modifiedDate;
 }

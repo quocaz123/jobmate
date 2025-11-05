@@ -29,4 +29,5 @@ public class JobResponse {
     LocalDateTime createdAt;
     LocalDateTime deadline;
     Double distance;
+    String rejectionReason;
 }

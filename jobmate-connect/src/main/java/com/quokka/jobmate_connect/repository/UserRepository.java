@@ -16,9 +16,18 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
+
+    boolean existsByEmail(String email);
     Optional<User> findByEmail(String email);
     Page<User> findByVerificationStatus(VerificationStatus status, Pageable pageable);
 
     @Query("SELECT u.id from User u JOIN u.roles r WHERE r.name = 'ADMIN'")
     List<UUID> findAdminIds();
+
+    Page<User> findByOrderByTrustScoreDesc(Pageable pageable);
+
+    Page<User> findByBadgeLevelOrderByTrustScoreDesc(String badgeLevel, Pageable pageable);
+
+    List<User> findTop10ByOrderByTrustScoreDesc();
+
 }

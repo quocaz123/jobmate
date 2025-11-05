@@ -68,6 +68,9 @@ public class Job {
     @Column(name = "verified_at")
     LocalDateTime verifiedAt;
 
+    @Column(name = "rejection_reason")
+    String rejectionReason;
+
     @Column(name = "is_auto_verified")
     boolean isAutoVerified = false;
 

@@ -63,17 +63,8 @@ public class UserVerificationService {
         user.setRejectionReason(null);
         userRepository.save(user);
 
-        List<UUID> adminIds = userRepository.findAdminIds();
-
-        for(UUID admin : adminIds) {
-            notificationService.sendNotification(NotificationRequest.builder()
-                            .userId(admin)
-                            .title("Có yêu cầu xác thực mới")
-                            .message("Người dùng " + user.getFullName() + " đã gửi yêu cầu xác thực tài khoản.")
-                            .type(NotificationType.SYSTEM)
-                    .build());
-        }
-
+        notificationService.notifyAdmins("Có yêu cầu xác thực mới",
+                "Người dùng " + user.getFullName() + " đã gửi yêu cầu xác thực tài khoản.");
 
         verificationEventProducer.sendVerificationRequestEvent(
                 VerificationRequestEvent.builder()

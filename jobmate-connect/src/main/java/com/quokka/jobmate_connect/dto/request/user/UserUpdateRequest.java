@@ -10,8 +10,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserUpdateRequest {
-    String email;
-    String password;
     String fullName;
     String phoneNumber;
+    String address;
+    String avatarUrl;
+    String skills;
+    Double latitude;
+    Double longitude;
 }

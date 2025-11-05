@@ -3,6 +3,7 @@ package com.quokka.jobmate_connect.controller;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
+import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
 import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ public class UserController {
     }
 
     @GetMapping("/my-info")
-    ApiResponse<UserResponse> getMyInfo(){
+    ApiResponse<UserResponse> getMyInfo() {
         return ApiResponse.success(userService.getMyInfo());
     }
 
@@ -40,8 +41,26 @@ public class UserController {
         return ApiResponse.success(results);
     }
 
+    @PutMapping()
+    public ApiResponse<UserResponse> updateUser(
+            @RequestBody UserUpdateRequest request) {
+        return ApiResponse.success(userService.updateUser(request));
+    }
+
     @GetMapping("/{id}")
     ApiResponse<UserResponse> getUserById(@PathVariable UUID id) {
         return ApiResponse.success(userService.getUserById(id));
+    }
+
+    @GetMapping("/top-rated")
+    public ApiResponse<PageResponse<UserResponse>> getTopRatedUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(userService.getTopRatedUsers(page, size));
+    }
+
+    @GetMapping("/top-10")
+    public ApiResponse<List<UserResponse>> getTop10RatedUsers() {
+        return ApiResponse.success(userService.getTop10RatedUsers());
     }
 }

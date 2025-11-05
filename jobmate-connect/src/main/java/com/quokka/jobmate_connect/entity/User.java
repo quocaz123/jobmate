@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class User {
 
     @Column(nullable = false)
     String password;
+
 
     @Column
     String fullName;
@@ -67,11 +69,41 @@ public class User {
     @Column
     LocalDateTime verificationRequestedAt;
 
+    @Column(columnDefinition = "FLOAT DEFAULT 0")
+    Float trustScore = 0f;
+
+    @Column
+    Integer reviewCount = 0;
+
+    @Column(columnDefinition = "INTEGER DEFAULT 0")
+    Integer violationCount = 0;
+
+    @Column
+    String badgeLevel;
+
+    @Column
+    String status ;
+
     @Column
     LocalDateTime createdAt;
 
     @Column
     LocalDateTime updatedAt;
+
+    @Column
+    String skills;
+
+    @Column
+    String preferredJobType;
+
+    @Column
+    String availableDays;
+
+    @Column
+    String availableTime;
+
+    @Column(precision = 12, scale = 2)
+    BigDecimal preferredMinSalary;
 
     @PrePersist
     void onCreate() {

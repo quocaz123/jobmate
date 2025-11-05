@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.controller;
 
+import com.quokka.jobmate_connect.constant.JobStatus;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.job.JobCreationRequest;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/jobs")
@@ -31,6 +34,13 @@ public class JobController {
         return ApiResponse.success(jobService.getAllJobs(page, size));
     }
 
+    @GetMapping("/my-jobs")
+    public ApiResponse<PageResponse<JobResponse>> getMyPostedJobs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(jobService.getMyJobs(page, size));
+    }
+
     @GetMapping("nearby")
     public ApiResponse<PageResponse<JobResponse>> getNearbyJobs(
             @RequestParam(defaultValue = "10") double radiusInKm,
@@ -41,5 +51,31 @@ public class JobController {
         return ApiResponse.success(result);
     }
 
+    @PreAuthorize("hasAnyRole('EMPLOYER', 'ADMIN')")
+    @PutMapping("/{jobId}")
+    public ApiResponse<JobResponse> updateJob(@PathVariable("jobId") UUID jobId, JobCreationRequest request) {
+        return ApiResponse.success(jobService.updateJob(jobId, request));
+    }
 
+    @PutMapping("/{jobId}/verify-job")
+    public ApiResponse<Void> verifyJob( @PathVariable UUID jobId,
+                                        @RequestParam JobStatus status,
+                                        @RequestParam(required = false) String reason) {
+        jobService.updateJobVerificationStatus(jobId, status, reason);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/available")
+    public ApiResponse<PageResponse<JobResponse>> getAvailableJobs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location) {
+        return ApiResponse.success(jobService.getAvailableJobs(page, size, keyword, location));
+    }
+
+    @GetMapping("/{jobId} ")
+    public ApiResponse<JobResponse> getJobDetail(@PathVariable UUID jobId) {
+        return ApiResponse.success(jobService.getJobDetails(jobId));
+    }
 }

@@ -28,4 +28,9 @@ public class ConversationController {
     public ApiResponse<List<ConversationResponse>> myConversations() {
         return ApiResponse.success(conversationService.myConversations());
     }
+
+    @GetMapping("/search")
+    public ApiResponse<List<ConversationResponse>> search(@RequestParam String keyword) {
+        return ApiResponse.success(conversationService.searchConversations(keyword));
+    }
 }

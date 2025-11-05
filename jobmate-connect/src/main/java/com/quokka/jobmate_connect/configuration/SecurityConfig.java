@@ -27,13 +27,16 @@ public class SecurityConfig {
         private final String[] PUBLIC_ENDPOINTS = {
                         "/auth/**", // login, outbound, introspect, refresh, logout, verify-otp
                         "/users/registration",
-                        "/notification/email/send"
+                        "/notification/email/send",
+
+
         };
 
         private final String[] PUBLIC_SWAGGER = {
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
-                        "/swagger-ui.html"
+                        "/swagger-ui.html",
+                        "/internal/**"
         };
 
         @Bean

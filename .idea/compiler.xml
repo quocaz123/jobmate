@@ -9,7 +9,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="api-gateway" />
       </profile>
-      <profile name="Annotation profile for Notification-Service" enabled="true">
+      <profile name="Annotation profile for Chat-Service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
@@ -19,6 +19,7 @@
           <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct/1.5.5.Final/mapstruct-1.5.5.Final.jar" />
         </processorPath>
         <module name="Notification-Service" />
+        <module name="chat-service" />
         <module name="jobmate-connect" />
       </profile>
     </annotationProcessing>
@@ -27,6 +28,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="Notification-Service" options="-parameters" />
       <module name="api-gateway" options="-parameters" />
+      <module name="chat-service" options="-parameters" />
       <module name="jobmate-connect" options="-parameters" />
     </option>
   </component>

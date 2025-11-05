@@ -78,7 +78,7 @@ public class FileService {
 
         fileMgtRepository.save(fileMgmt);
 
-        if (type == FileTypeStatus.AVATAR && !isPrivate) {
+        if (type == FileTypeStatus.AVATAR && !isPrivate ) {
             String avatarUrl = publicUrl;
             userRepository.findById(userId).ifPresent(user -> {
                 user.setAvatarUrl(avatarUrl);

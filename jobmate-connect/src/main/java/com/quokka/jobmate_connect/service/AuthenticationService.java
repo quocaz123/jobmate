@@ -17,15 +17,18 @@ import com.quokka.jobmate_connect.dto.request.user.SetPasswordRequest;
 import com.quokka.jobmate_connect.dto.response.user.SetPasswordResponse;
 import com.quokka.jobmate_connect.dto.response.user.OutboundResponse;
 import com.quokka.jobmate_connect.entity.InvalidatedToken;
+import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.repository.InvalidatedTokenRepository;
+import com.quokka.jobmate_connect.repository.RoleRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import com.quokka.jobmate_connect.repository.httpClient.OutboundClient;
 import com.quokka.jobmate_connect.repository.httpClient.OutboundUserClient;
 import com.quokka.jobmate_connect.kafka.dto.SendOtpEvent;
 import com.quokka.jobmate_connect.kafka.topic.OtpEventProducer;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.experimental.FieldDefaults;
@@ -44,7 +47,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-@FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class AuthenticationService {
     UserRepository userRepository;
@@ -53,6 +56,8 @@ public class AuthenticationService {
     OutboundUserClient outboundUserClient;
     OtpService otpService;
     OtpEventProducer otpEventProducer;
+    RoleRepository roleRepository;
+
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -82,17 +87,21 @@ public class AuthenticationService {
     @Value("${outbound.grant-type}")
     protected String GRAND_TYPE;
 
-    public IntrospectResponse introspect(IntrospectRequest request) {
+    public IntrospectResponse introspect(IntrospectRequest request) throws ParseException {
         var token = request.getToken();
         boolean isValid = true;
+        SignedJWT jwt = null;
 
         try {
-            verifyToken(token, false);
+           jwt = verifyToken(token, false);
         } catch (AppException | JOSEException | ParseException e) {
             isValid = false;
         }
 
-        return IntrospectResponse.builder().valid(isValid).build();
+        return IntrospectResponse.builder()
+                .userId(Objects.isNull(jwt) ? jwt.getJWTClaimsSet().getSubject() : null)
+                .valid(isValid)
+                .build();
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
@@ -201,16 +210,22 @@ public class AuthenticationService {
             user = existingUser.get();
         } else {
 
+            HashSet<Role> roles = new HashSet<>();
+            roleRepository.findByName("USER").ifPresent(roles::add);
+
             user = User.builder()
                     .email(userInfo.getEmail())
                     .password("")
                     .fullName(userInfo.getName())
                     .phoneNumber("")
+                    .roles(roles)
                     .build();
             user = userRepository.save(user);
         }
 
         boolean hasPassword = user.getPassword() != null && !user.getPassword().isEmpty();
+
+        var token = generateToken(user);
 
         if (!hasPassword) {
             // User chưa có password, yêu cầu set password
@@ -219,10 +234,10 @@ public class AuthenticationService {
                     .userEmail(user.getEmail())
                     .userName(user.getFullName())
                     .message("Please set up your password to complete registration.")
+                    .token(token)
                     .build();
         }
 
-        var token = generateToken(user);
 
         return AuthenticationResponse.builder()
                 .token(token)

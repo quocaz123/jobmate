@@ -37,8 +37,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     @NonFinal
     private String[] publicEndpoints = {
             "/jobmate/auth/.*",
+            "/jobmate/auth/outbound/.*",
             "/jobmate/users/.*", // cho đăng ký user (POST /users)
             "/notification/email/send",
+            "/chat/conversations/.*", // cho chat-service
+            "/chat/messages/.*"      // cho chat-service
 
     };
 

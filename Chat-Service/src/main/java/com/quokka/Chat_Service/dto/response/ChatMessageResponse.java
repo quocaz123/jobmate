@@ -15,5 +15,5 @@ public class ChatMessageResponse {
     boolean me;
     String message;
     ParticipantInfo sender;
-    String createDate;
+    String createdDate;
 }

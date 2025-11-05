@@ -11,5 +11,15 @@ import java.util.UUID;
 
 @Repository
 public interface JobRepository extends JpaRepository<Job, UUID> {
+
+    // Lấy danh sách công việc theo trạng thái
     Page<Job> findByStatus(JobStatus status, Pageable pageable);
+
+    Page<Job> findByCreatedById(UUID userId, Pageable pageable);
+
+    // Tìm job theo tiêu đề (title) chứa từ khóa, chỉ lấy job đã duyệt
+    Page<Job> findByTitleContainingIgnoreCaseAndStatus(String title, JobStatus status, Pageable pageable);
+
+    // Tìm job theo địa điểm (location), chỉ lấy job đã duyệt
+    Page<Job> findByLocationContainingIgnoreCaseAndStatus(String location, JobStatus status, Pageable pageable);
 }
