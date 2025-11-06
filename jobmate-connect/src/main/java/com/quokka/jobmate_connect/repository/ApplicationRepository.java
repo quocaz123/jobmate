@@ -22,4 +22,7 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     // Lấy tất cả applications của 1 user, sắp theo thời gian nộp (mới nhất trước)
     @Query("SELECT a FROM Application a WHERE a.user.id = :userId ORDER BY a.appliedAt DESC")
     Page<Application> findByUserIdOrderByAppliedAtDesc(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query("SELECT COUNT(a) FROM Application a WHERE a.job.id = :jobId AND a.status != 'CANCELLED'")
+    Long countByJobId(@Param("jobId") UUID jobId);
 }

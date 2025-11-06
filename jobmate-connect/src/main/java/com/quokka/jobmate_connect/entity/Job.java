@@ -30,6 +30,12 @@ public class Job {
     @Column(columnDefinition = "TEXT")
     String description;
 
+    @Column(columnDefinition = "TEXT")
+    String requirements;
+
+    @Column(columnDefinition = "TEXT")
+    String benefits;
+
     @Column(length = 100)
     String location;
 
@@ -79,4 +85,31 @@ public class Job {
 
     @Column(name = "updated_at")
     LocalDateTime updatedAt = LocalDateTime.now();
+
+    @Column(name = "company_name", length = 255)
+    String companyName;
+
+    @Column(name = "application_count", columnDefinition = "INTEGER DEFAULT 0")
+    Integer applicationCount = 0;
+
+    @Column(name = "salary_unit", length = 50)
+    String salaryUnit;
+
+    @Column(name = "working_hours", length = 255)
+    String workingHours;
+
+    @Column(name = "working_days", length = 100)
+    String workingDays;
+
+    @Column(name = "work_mode", length = 20)
+    String workMode;
+
+    @Column(name = "category", length = 100)
+    String category;
+
+    @Column(name = "views_count", columnDefinition = "INTEGER DEFAULT 0")
+    Integer viewsCount = 0;
+
+    @Column(name = "contact_phone", length = 20)
+    String contactPhone;
 }

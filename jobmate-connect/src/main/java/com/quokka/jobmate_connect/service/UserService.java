@@ -96,20 +96,15 @@ public class UserService {
         String name = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (request.getFullName() != null) {
-            user.setFullName(request.getFullName());
-        }
-        if (request.getPhoneNumber() != null) {
-            user.setPhoneNumber(request.getPhoneNumber());
-        }
-        if (request.getAddress() != null) {
-            user.setAddress(request.getAddress());
+        userMapper.updateUser(user, request);
+
+        if (request.getAddress() != null && !request.getAddress().isEmpty()) {
+            double[] coordinates = geocodingService.getCoordinates(request.getAddress());
+            user.setLatitude(coordinates[0]);
+            user.setLongitude(coordinates[1]);
+            log.info("Geocoding address: {} to coordinates: {}, {}", request.getAddress(), coordinates[0], coordinates[1]);
         }
 
-        double[] coordinates = geocodingService.getCoordinates(request.getAddress());
-        user.setLatitude(coordinates[0]);
-        user.setLongitude(coordinates[1]);
-        log.info("Geocoding address: {} to coordinates: {}, {}", request.getAddress(), coordinates[0], coordinates[1]);
         user.setUpdatedAt(LocalDateTime.now());
 
         User updatedUser = userRepository.save(user);

@@ -9,9 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserCreationRequest {
-    String email;
-    String password;
-    String fullName;
-    String contactPhone;
+public class LocationRequest {
+    String address;
+    Double  latitude;
+    Double  longitude;
 }

@@ -30,13 +30,16 @@ public class SecurityConfig {
                         "/notification/email/send",
 
 
+
         };
 
         private final String[] PUBLIC_SWAGGER = {
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
-                        "/internal/**"
+                        "/internal/**",
+                "/jobs/available",
+
         };
 
         @Bean

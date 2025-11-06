@@ -26,6 +26,7 @@ public enum ErrorCode {
     PASSWORD_TOO_LONG(2006, "Password must not exceed 50 characters", HttpStatus.BAD_REQUEST),
     INVALID_OLD_PASSWORD(2007, "Old password is incorrect", HttpStatus.BAD_REQUEST),
     EMAIL_ALREADY_EXISTS(2008, "Email already exists", HttpStatus.CONFLICT),
+    LOCATION_ALREADY_SET(2009, "Location has already been set and cannot be changed", HttpStatus.BAD_REQUEST),
 
     // ========== 3xxx: JOB ==========
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),

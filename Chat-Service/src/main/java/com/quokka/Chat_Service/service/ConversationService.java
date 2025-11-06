@@ -80,10 +80,14 @@ public class ConversationService {
                             .fullName(otherUser.getFullName())
                             .avatar(otherUser.getAvatarUrl())
                             .build());
+
+
             Conversation newConversation = Conversation.builder()
                     .type(request.getType())
                     .participantsHash(hash)
                     .participants(participantInfos)
+                    .conversationName(otherUser.getFullName())
+                    .conversationAvatar(otherUser.getAvatarUrl())
                     .createdDate(Instant.now())
                     .modifiedDate(Instant.now())
                     .build();

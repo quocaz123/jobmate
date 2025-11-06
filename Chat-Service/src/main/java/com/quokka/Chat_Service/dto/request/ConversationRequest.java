@@ -18,4 +18,7 @@ public class ConversationRequest {
     @Size(min = 1)
     @NotNull
     List<String> participantIds;
+
+    String conversationName;
+    String conversationAvatar;
 }

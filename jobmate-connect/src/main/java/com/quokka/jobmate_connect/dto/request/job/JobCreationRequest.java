@@ -16,11 +16,20 @@ import java.time.LocalDateTime;
 public class JobCreationRequest {
     String title;
     String description;
+    String requirements;
+    String benefits;
     String location;
     BigDecimal salary;
     String jobType;
+    String salaryUnit;
     LocalDateTime startAt;
     LocalDateTime deadline;
     String skills;
     User createdBy;
+    String companyName;
+    String workingHours;
+    String workingDays;
+    String workMode;
+    String category;
+    String contactPhone;
 }

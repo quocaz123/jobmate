@@ -39,6 +39,8 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             "/jobmate/auth/.*",
             "/jobmate/auth/outbound/.*",
             "/jobmate/users/.*", // cho đăng ký user (POST /users)
+            "/jobmate/jobs/available",
+            // cho xem job công khai
             "/notification/email/send",
             "/chat/conversations/.*", // cho chat-service
             "/chat/messages/.*"      // cho chat-service

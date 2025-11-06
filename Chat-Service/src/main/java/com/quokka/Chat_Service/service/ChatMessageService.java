@@ -78,10 +78,12 @@ public class ChatMessageService {
 
                 // Get profile info
                 var profileRes = profileClient.getProfile(uuidUserId);
+                log.info("Profile response: {}", profileRes);
                 if (Objects.isNull(profileRes) || profileRes.getData() == null)
                         throw new AppException(ErrorCode.UNAUTHORIZED);
 
                 var user = profileRes.getData();
+                log.info("Sending message from user: {}", user);
 
                 // Build message
                 ChatMessage chatMessage = chatMessageMapper.toChatMessage(request);
@@ -89,12 +91,19 @@ public class ChatMessageService {
                         .userId(user.getId().toString())
                         .email(user.getEmail())
                         .fullName(user.getFullName())
-                        .avatar(user.getAvatarUrl() != null ? user.getAvatarUrl() : "https://via.placeholder.com/150")
+                        .avatar(user.getAvatarUrl())
                         .build());
                 chatMessage.setCreatedDate(Instant.now());
                 chatMessage.setConversationId(request.getConversationId());
 
                 chatMessage = chatMessageRepository.save(chatMessage);
+
+                // Update last message in conversation
+                conversation.setLastMessage(chatMessage.getMessage());
+                conversation.setLastSenderId(userId);
+                conversation.setLastMessageTime(Instant.now());
+                conversation.setModifiedDate(Instant.now());
+                conversationRepository.save(conversation);
 
                 // Build response and broadcast
                 ChatMessageResponse response = toResponse(chatMessage);

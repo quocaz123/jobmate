@@ -4,6 +4,7 @@ import com.quokka.jobmate_connect.constant.JobStatus;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.job.JobCreationRequest;
+import com.quokka.jobmate_connect.dto.response.job.JobDetailResponse;
 import com.quokka.jobmate_connect.dto.response.job.JobResponse;
 import com.quokka.jobmate_connect.service.JobService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ import java.util.UUID;
 public class JobController {
     JobService jobService;
 
-    @PreAuthorize("hasRole('EMPLOYER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EMPLOYER','ADMIN')")
     @PostMapping()
     public ApiResponse<JobResponse> createJob(@RequestBody JobCreationRequest request) {
         return ApiResponse.success(jobService.createJob(request));
@@ -29,23 +30,24 @@ public class JobController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
     public ApiResponse<PageResponse<JobResponse>> getAllJobs(
-            @RequestParam int page,
-            @RequestParam int size) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         return ApiResponse.success(jobService.getAllJobs(page, size));
     }
 
     @GetMapping("/my-jobs")
     public ApiResponse<PageResponse<JobResponse>> getMyPostedJobs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.success(jobService.getMyJobs(page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) JobStatus status) {
+        return ApiResponse.success(jobService.getMyJobs(page, size, status));
     }
 
-    @GetMapping("nearby")
+    @GetMapping("/nearby")
     public ApiResponse<PageResponse<JobResponse>> getNearbyJobs(
             @RequestParam(defaultValue = "10") double radiusInKm,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size){
+            @RequestParam(defaultValue = "10") int size) {
 
         var result = jobService.getNearByJob(radiusInKm, page, size);
         return ApiResponse.success(result);
@@ -53,14 +55,15 @@ public class JobController {
 
     @PreAuthorize("hasAnyRole('EMPLOYER', 'ADMIN')")
     @PutMapping("/{jobId}")
-    public ApiResponse<JobResponse> updateJob(@PathVariable("jobId") UUID jobId, JobCreationRequest request) {
+    public ApiResponse<JobResponse> updateJob(@PathVariable("jobId") UUID jobId,
+            @RequestBody JobCreationRequest request) {
         return ApiResponse.success(jobService.updateJob(jobId, request));
     }
 
     @PutMapping("/{jobId}/verify-job")
-    public ApiResponse<Void> verifyJob( @PathVariable UUID jobId,
-                                        @RequestParam JobStatus status,
-                                        @RequestParam(required = false) String reason) {
+    public ApiResponse<Void> verifyJob(@PathVariable UUID jobId,
+            @RequestParam JobStatus status,
+            @RequestParam(required = false) String reason) {
         jobService.updateJobVerificationStatus(jobId, status, reason);
         return ApiResponse.success(null);
     }
@@ -74,8 +77,13 @@ public class JobController {
         return ApiResponse.success(jobService.getAvailableJobs(page, size, keyword, location));
     }
 
-    @GetMapping("/{jobId} ")
+    @GetMapping("/{jobId}")
     public ApiResponse<JobResponse> getJobDetail(@PathVariable UUID jobId) {
         return ApiResponse.success(jobService.getJobDetails(jobId));
+    }
+
+    @GetMapping("/details/{jobId}")
+    public ApiResponse<JobDetailResponse> getJobFullDetail(@PathVariable UUID jobId) {
+        return ApiResponse.success(jobService.getJobDetailById(jobId));
     }
 }

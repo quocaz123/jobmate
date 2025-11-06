@@ -16,32 +16,12 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponse {
+public class EmployerResponse {
     UUID id;
     String email;
     String fullName;
     String address;
-    String contactPhone;
-    Double  latitude;
-    Double  longitude;
     String avatarUrl;
-    String skills;
-    Set<RoleResponse> roles;
-    boolean isTwoFaEnabled;
-    VerificationStatus verificationStatus;
-    LocalDateTime verifiedAt;
-    Float trustScore;
     String badgeLevel;
     Integer reviewCount;
-    Integer violationCount;
-    String status;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
-
-    String preferredJobType;
-    String availableDays;
-    String availableTime;
-    BigDecimal preferredMinSalary;
-
-    String bio;
 }

@@ -33,4 +33,10 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
     boolean existsByFromUserIdAndToUserIdAndJobId(UUID fromUserId, UUID touserId, UUID jobId);
 
     long countByToUserId(UUID userId);
+
+    @Query("SELECT AVG(r.score) FROM Rating r WHERE r.job.id = :jobId")
+    Double getAverageRatingByJobId(@Param("jobId") UUID jobId);
+
+    @Query("SELECT COUNT(r) FROM Rating r WHERE r.job.id = :jobId")
+    Long countByJobId(@Param("jobId") UUID jobId);
 }

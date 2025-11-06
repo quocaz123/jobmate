@@ -19,7 +19,10 @@ public class ConversationResponse {
     String conversationName;
     String conversationAvatar;
     List<ParticipantInfo> participants;
-    Instant createDate;
+    String lastMessage;
+    String lastSenderId;
+    Instant lastMessageTime;
+    Instant createdDate;
     Instant modifiedDate;
 
 }

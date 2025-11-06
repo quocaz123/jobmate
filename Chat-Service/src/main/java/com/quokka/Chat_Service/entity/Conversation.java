@@ -27,6 +27,16 @@ public class Conversation {
 
     List<ParticipantInfo> participants;
 
+    @Indexed
+    String conversationName;
+    String conversationAvatar;
+
+    String lastMessage;
+
+    String lastSenderId;
+
+    Instant lastMessageTime;
+
     Instant createdDate;
     Instant modifiedDate;
 }

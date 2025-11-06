@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.dto.response.job;
 
 import com.quokka.jobmate_connect.constant.JobStatus;
+import com.quokka.jobmate_connect.dto.response.user.EmployerResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobResponse {
+public class JobDetailResponse {
     UUID id;
     String title;
     String description;
@@ -22,17 +23,12 @@ public class JobResponse {
     String benefits;
     String salaryUnit;
     String location;
-    Double latitude;
-    Double longitude;
     BigDecimal salary;
     String jobType;
     String skills;
-    JobStatus status;
     String createdByName;
     LocalDateTime createdAt;
     LocalDateTime deadline;
-    Double distance;
-    String rejectionReason;
 
     String companyName;
     Integer applicationCount;
@@ -44,4 +40,6 @@ public class JobResponse {
     String contactPhone;
     Float averageRating;
     Integer ratingCount;
+
+    EmployerResponse employer;
 }

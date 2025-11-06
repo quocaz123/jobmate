@@ -95,6 +95,10 @@ public class ApplicationService {
 
         applicationRepository.save(application);
 
+        Long appCount = applicationRepository.countByJobId(job.getId());
+        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
+        jobRepository.save(job);
+
         return applicationMapper.toApplicationResponse(application);
     }
 
@@ -178,6 +182,11 @@ public class ApplicationService {
                 .build()
         );
 
+        Job job = application.getJob();
+        Long appCount = applicationRepository.countByJobId(job.getId());
+        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
+        jobRepository.save(job);
+
         return applicationMapper.toApplicationResponse(application);
     }
 
@@ -200,6 +209,11 @@ public class ApplicationService {
         application.setStatus(ApplicationStatus.CANCELLED);
         application.setCancelledAt(LocalDateTime.now());
         applicationRepository.save(application);
+
+        Job job = application.getJob();
+        Long appCount = applicationRepository.countByJobId(job.getId());
+        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
+        jobRepository.save(job);
     }
 
 

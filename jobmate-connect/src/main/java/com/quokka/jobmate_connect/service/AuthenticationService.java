@@ -58,7 +58,6 @@ public class AuthenticationService {
     OtpEventProducer otpEventProducer;
     RoleRepository roleRepository;
 
-
     @NonFinal
     @Value("${jwt.signerKey}")
     protected String SIGNER_KEY;
@@ -93,13 +92,23 @@ public class AuthenticationService {
         SignedJWT jwt = null;
 
         try {
-           jwt = verifyToken(token, false);
+            jwt = verifyToken(token, false);
         } catch (AppException | JOSEException | ParseException e) {
             isValid = false;
         }
 
+        String userId = null;
+        try {
+            if (jwt != null) {
+                var claims = jwt.getJWTClaimsSet();
+                Object idClaim = claims.getClaim("userId");
+                userId = idClaim != null ? String.valueOf(idClaim) : claims.getSubject();
+            }
+        } catch (Exception ignored) {
+        }
+
         return IntrospectResponse.builder()
-                .userId(Objects.isNull(jwt) ? jwt.getJWTClaimsSet().getSubject() : null)
+                .userId(userId)
                 .valid(isValid)
                 .build();
     }
@@ -217,7 +226,7 @@ public class AuthenticationService {
                     .email(userInfo.getEmail())
                     .password("")
                     .fullName(userInfo.getName())
-                    .phoneNumber("")
+                    .contactPhone("")
                     .roles(roles)
                     .build();
             user = userRepository.save(user);
@@ -237,7 +246,6 @@ public class AuthenticationService {
                     .token(token)
                     .build();
         }
-
 
         return AuthenticationResponse.builder()
                 .token(token)

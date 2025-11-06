@@ -34,16 +34,16 @@ public class User {
     String fullName;
 
     @Column
-    String phoneNumber;
+    String contactPhone;
 
     @Column
     String address;
 
     @Column
-    double latitude;
+    Double  latitude;
 
     @Column
-    double longitude;
+    Double  longitude;
 
     @Column
     String avatarUrl;
@@ -101,6 +101,9 @@ public class User {
 
     @Column
     String availableTime;
+
+    @Column(columnDefinition = "TEXT")
+    String bio;
 
     @Column(precision = 12, scale = 2)
     BigDecimal preferredMinSalary;
