@@ -39,7 +39,8 @@ public class FileService {
         Set<String> ALLOWED_TYPES = Set.of(
                 "image/png",
                 "image/jpg",
-                "image/jpeg"
+                "image/jpeg",
+                "application/pdf"
         );
         if(!ALLOWED_TYPES.contains(file.getContentType())) {
             throw new IllegalArgumentException("File type not allowed: " + file.getContentType());
@@ -86,10 +87,18 @@ public class FileService {
             });
         }
 
+
         return fileMapper.toFileMgmtResponse(fileMgmt);
     }
 
-    public String getPrivateFileUrl(UUID userId, FileTypeStatus type, int expireMinutes) {
+    public String getPrivateFileUrl(FileTypeStatus type, UUID userId) {
+
+        int expireMinutes = switch (type) {
+            case CCCD_FRONT, CCCD_BACK -> 5;
+            case RESUME -> 15;
+            default -> 10;
+        };
+
         FileMgmt file = fileMgtRepository.findByOwnerIdAndType(userId, type)
                 .orElseThrow(() -> new RuntimeException("File not found"));
         return s3Service.generatePresignedUrl(file.getS3Key(), expireMinutes);

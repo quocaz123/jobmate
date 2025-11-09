@@ -8,19 +8,25 @@ import java.util.UUID;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RatingResponse {
     UUID id;
-    UUID fromUserId;
-    String fromUserName;
-    UUID toUserId;
-    String toUserName;
-    UUID jobId;
-    String jobTitle;
     Float score;
     String comment;
     LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+
+    // Người đánh giá
+    UUID fromUserId;
+    String fromUserName;
+    String fromUserAvatar;
+
+    // Người được đánh giá
+    UUID toUserId;
+    String toUserName;
+
+    // Công việc liên quan
+    UUID jobId;
+    String jobTitle;
 }

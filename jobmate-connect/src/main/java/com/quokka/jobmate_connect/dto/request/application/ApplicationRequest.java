@@ -21,5 +21,5 @@ public class ApplicationRequest {
 
     MultipartFile resumeFile;
 
-    String resumeUrl;
+    boolean useProfileResume;
 }

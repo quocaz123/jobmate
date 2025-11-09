@@ -1,16 +1,21 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.FileTypeStatus;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.PasswordUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
+import com.quokka.jobmate_connect.dto.response.user.RoleResponse;
+import com.quokka.jobmate_connect.dto.response.user.UserDetailResponse;
 import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
+import com.quokka.jobmate_connect.mapper.FileMapper;
 import com.quokka.jobmate_connect.mapper.UserMapper;
+import com.quokka.jobmate_connect.repository.FileMgtRepository;
 import com.quokka.jobmate_connect.repository.RoleRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +32,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,8 +44,9 @@ public class UserService {
     PasswordEncoder passwordEncoder;
     UserMapper userMapper;
     RoleRepository roleRepository;
-    FileService fileService;
+    FileMgtRepository fileMgtRepository;
     GeocodingService geocodingService;
+    FileMapper fileMapper;
 
     public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -61,12 +65,55 @@ public class UserService {
         return userMapper.toUserResponse(userRepository.save(user));
     }
 
-    public UserResponse getMyInfo() {
-        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+    public UserDetailResponse getMyInfo() {
+        var auth = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID userId = UUID.fromString(auth.getClaim("userId"));
 
-        User user = userRepository.findByEmail(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toUserResponse(user);
+
+        UserDetailResponse response = new UserDetailResponse();
+        response.setId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setFullName(user.getFullName());
+        response.setAvatarUrl(user.getAvatarUrl());
+        response.setAddress(user.getAddress());
+        response.setContactPhone(user.getContactPhone());
+        response.setSkills(user.getSkills());
+        response.setPreferredJobType(user.getPreferredJobType());
+        response.setAvailableDays(user.getAvailableDays());
+        response.setAvailableTime(user.getAvailableTime());
+        response.setPreferredMinSalary(user.getPreferredMinSalary());
+        response.setLatitude(user.getLatitude());
+        response.setLongitude(user.getLongitude());
+        response.setTrustScore(user.getTrustScore() != null ? user.getTrustScore() : 0f);
+        response.setBadgeLevel(user.getBadgeLevel());
+        response.setBio(user.getBio());
+        response.setReviewCount(user.getReviewCount() != null ? user.getReviewCount() : 0);
+        response.setViolationCount(user.getViolationCount() != null ? user.getViolationCount() : 0);
+        response.setStatus(user.getStatus());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
+        response.setVerificationStatus(user.getVerificationStatus());
+        response.setVerifiedAt(user.getVerifiedAt());
+        response.setTwoFaEnabled(user.is_two_fa_enabled());
+
+        // map roles (tránh null)
+        Set<RoleResponse> roleResponses = user.getRoles() == null ? Set.of() :
+                user.getRoles().stream()
+                        .map(role -> RoleResponse.builder()
+                                .name(role.getName())
+                                .description(role.getDescription())
+                                .build())
+                        .collect(Collectors.toSet());
+        response.setRoles(roleResponses);
+
+
+       fileMgtRepository.findByOwnerIdAndType(userId, FileTypeStatus.RESUME)
+                .map(fileMapper::toFileResumeResponse)
+                .ifPresent(response::setResume);
+
+        return response;
     }
 
     public PageResponse<UserResponse> getAllUsers(int page, int size) {

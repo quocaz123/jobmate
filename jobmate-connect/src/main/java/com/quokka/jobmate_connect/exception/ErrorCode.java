@@ -47,7 +47,9 @@ public enum ErrorCode {
     // ========== 6xxx: RATING ==========
     ALREADY_EXISTS(6001, "User has already rated this user for the specified job.", HttpStatus.CONFLICT),
     CANNOT_RATE_SELF(6002, "Users cannot rate themselves.", HttpStatus.BAD_REQUEST),
-    RATING_NOT_FOUND(6003, "Rating not found", HttpStatus.NOT_FOUND)
+    RATING_NOT_FOUND(6003, "Rating not found", HttpStatus.NOT_FOUND),
+    RATING_NOT_ALLOWED(6004, "Rating is not allowed for this user or job", HttpStatus.BAD_REQUEST),
+    RATING_NOT_ALLOWED_BEFORE_DEADLINE(6005, "Rating is not allowed before the job completion deadline", HttpStatus.BAD_REQUEST)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

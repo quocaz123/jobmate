@@ -31,6 +31,7 @@ public interface JobMapper {
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
+                .address(user.getAddress())
                 .avatarUrl(user.getAvatarUrl())
                 .badgeLevel(user.getBadgeLevel())
                 .reviewCount(user.getReviewCount())

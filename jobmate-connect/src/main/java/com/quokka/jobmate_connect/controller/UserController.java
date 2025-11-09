@@ -6,6 +6,7 @@ import com.quokka.jobmate_connect.dto.request.user.LocationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
 import com.quokka.jobmate_connect.dto.response.user.LocationResponse;
+import com.quokka.jobmate_connect.dto.response.user.UserDetailResponse;
 import com.quokka.jobmate_connect.dto.response.user.UserResponse;
 import com.quokka.jobmate_connect.service.LocationService;
 import com.quokka.jobmate_connect.service.UserService;
@@ -32,7 +33,7 @@ public class UserController {
     }
 
     @GetMapping("/my-info")
-    ApiResponse<UserResponse> getMyInfo() {
+    ApiResponse<UserDetailResponse> getMyInfo() {
         return ApiResponse.success(userService.getMyInfo());
     }
 

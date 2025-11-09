@@ -1,28 +1,46 @@
 package com.quokka.jobmate_connect.repository;
 
+import com.quokka.jobmate_connect.constant.ApplicationStatus;
 import com.quokka.jobmate_connect.entity.Application;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
 
-    boolean existsByJobIdAndUserId(UUID jobId, UUID userId);
+    Optional<Application> findByUserIdAndJobId(UUID userId, UUID jobId);
 
     // Lấy tất cả applications của 1 job, sắp theo thời gian nộp (mới nhất trước)
+    @EntityGraph(attributePaths = { "job", "user" })
     @Query("SELECT a FROM Application a WHERE a.job.id = :jobId ORDER BY a.appliedAt DESC")
     Page<Application> findByJobIdOrderByAppliedAtDesc(@Param("jobId") UUID jobId, Pageable pageable);
 
     // Lấy tất cả applications của 1 user, sắp theo thời gian nộp (mới nhất trước)
+    @EntityGraph(attributePaths = { "job", "user" })
     @Query("SELECT a FROM Application a WHERE a.user.id = :userId ORDER BY a.appliedAt DESC")
     Page<Application> findByUserIdOrderByAppliedAtDesc(@Param("userId") UUID userId, Pageable pageable);
 
     @Query("SELECT COUNT(a) FROM Application a WHERE a.job.id = :jobId AND a.status != 'CANCELLED'")
     Long countByJobId(@Param("jobId") UUID jobId);
+
+    // Lấy application với eager loading job và user
+    @EntityGraph(attributePaths = { "job", "user", "job.createdBy" })
+    Optional<Application> findById(UUID id);
+
+    Page<Application> findByJobIdAndStatusOrderByAppliedAtDesc(
+            UUID jobId,
+            ApplicationStatus status,
+            Pageable pageable);
+
+    boolean existsByUserIdAndJobIdAndStatusIn(UUID userId, UUID jobId, List<ApplicationStatus> statuses);
+
 }

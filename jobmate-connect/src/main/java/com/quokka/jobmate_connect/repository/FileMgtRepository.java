@@ -14,4 +14,6 @@ public interface FileMgtRepository extends JpaRepository<FileMgmt, UUID> {
     Optional<FileMgmt> findByOwnerIdAndType(UUID ownerId, FileTypeStatus type);
 
     List<FileMgmt> findAllByOwnerId(UUID ownerId);
+
+
 }

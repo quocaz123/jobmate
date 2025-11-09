@@ -2,12 +2,12 @@ package com.quokka.jobmate_connect.service;
 
 import com.quokka.jobmate_connect.constant.ApplicationStatus;
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
-import com.quokka.jobmate_connect.constant.JobStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.application.ApplicationRequest;
 import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
+import com.quokka.jobmate_connect.dto.response.application.ApplicationDetailResponse;
+import com.quokka.jobmate_connect.dto.response.application.ApplicationListResponse;
 import com.quokka.jobmate_connect.dto.response.application.ApplicationResponse;
-import com.quokka.jobmate_connect.dto.response.file.FileResponse;
 import com.quokka.jobmate_connect.entity.Application;
 import com.quokka.jobmate_connect.entity.Job;
 import com.quokka.jobmate_connect.entity.User;
@@ -15,206 +15,291 @@ import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.ApplicationMapper;
 import com.quokka.jobmate_connect.repository.ApplicationRepository;
+import com.quokka.jobmate_connect.repository.FileMgtRepository;
 import com.quokka.jobmate_connect.repository.JobRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
+import com.quokka.jobmate_connect.service.maching.MatchingService;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class ApplicationService {
+
     ApplicationRepository applicationRepository;
     ApplicationMapper applicationMapper;
     UserRepository userRepository;
     JobRepository jobRepository;
     NotificationService notificationService;
     FileService fileService;
+    FileMgtRepository fileMgtRepository;
+    MatchingService matchingService;
 
+    // ------------------------------------------------
+    // 🔹 Helper methods
+    // ------------------------------------------------
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email).orElseThrow(
-                () -> new AppException(ErrorCode.USER_NOT_FOUND)
-        );
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // Ứng viên nộp đơn vào một công việc.
+    private UUID getCurrentUserId() {
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return UUID.fromString(jwt.getClaimAsString("userId"));
+    }
+
+    private void updateJobApplicationCount(Job job) {
+        Long appCount = applicationRepository.countByJobId(job.getId());
+        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
+        jobRepository.save(job);
+    }
+
+    // ------------------------------------------------
+    // ✅ Ứng viên nộp đơn vào công việc
+    // ------------------------------------------------
     @Transactional
     public ApplicationResponse applyJob(ApplicationRequest request) {
-        User user = getCurrentUser();
+        UUID userId = getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Job job = jobRepository.findById(request.getJobId())
+                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
 
-        Job job = jobRepository.findById(request.getJobId()).orElseThrow(
-                () -> new AppException(ErrorCode.JOB_NOT_FOUND)
-        );
+        // ✅ Kiểm tra đơn cũ
+        applicationRepository.findByUserIdAndJobId(userId, job.getId()).ifPresent(existingApp -> {
+            if (existingApp.getStatus() == ApplicationStatus.PENDING ||
+                    existingApp.getStatus() == ApplicationStatus.ACCEPTED) {
+                throw new AppException(ErrorCode.ALREADY_APPLIED);
+            } else if (existingApp.getStatus() == ApplicationStatus.REJECTED ||
+                    existingApp.getStatus() == ApplicationStatus.CANCELLED) {
+                applicationRepository.delete(existingApp);
+                log.info("🗑 Đã xóa đơn cũ của [{}] để apply lại job [{}]", user.getEmail(), job.getTitle());
+            }
+        });
 
-        if(job.getStatus() != JobStatus.APPROVED) {
-            throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
-        }
+        boolean hasResume = false;
+        String resumeFileName = null;
+        MultipartFile resumeFile = request.getResumeFile();
 
-        if(applicationRepository.existsByJobIdAndUserId(job.getId(), user.getId())) {
-            throw new AppException(ErrorCode.ALREADY_APPLIED);
-        }
-
-        String resumeUrl = null;
-        if(request.getResumeUrl() != null) {
+        // Upload CV mới
+        if (resumeFile != null && !resumeFile.isEmpty()) {
             try {
-                FileResponse fileResponse = fileService.uploadFile(request.getResumeFile(), FileTypeStatus.RESUME);
-                resumeUrl = fileResponse.getUrl();
-            } catch (IOException e) {
-                throw new AppException(ErrorCode.FILE_UPLOAD_FAILED);
+                var upload = fileService.uploadFile(resumeFile, FileTypeStatus.RESUME);
+                hasResume = true;
+                resumeFileName = upload.getUrl().substring(upload.getUrl().lastIndexOf("/") + 1);
+            } catch (Exception e) {
+                log.error("❌ Upload resume failed for user {}", user.getEmail(), e);
+                throw new AppException(ErrorCode.INTERNAL_ERROR);
+            }
+        } else if (request.isUseProfileResume()) {
+            resumeFileName = fileMgtRepository.findByOwnerIdAndType(userId, FileTypeStatus.RESUME)
+                    .map(file -> file.getUrl().substring(file.getUrl().lastIndexOf("/") + 1))
+                    .orElse(null);
+            if (resumeFileName != null) {
+                hasResume = true;
             }
         }
 
         Application application = Application.builder()
-                .job(job)
                 .user(user)
-                .status(ApplicationStatus.PENDING)
+                .job(job)
                 .coverLetter(request.getCoverLetter())
-                .resumeUrl(resumeUrl)
+                .hasResume(hasResume)
+                .resumeFileName(resumeFileName)
+                .status(ApplicationStatus.PENDING)
+                .appliedAt(LocalDateTime.now())
                 .build();
 
+        applicationRepository.save(application);
+        updateJobApplicationCount(job);
+
+        double matchScore = matchingService.calculateMatchScore(user, job);
 
         notificationService.sendNotification(NotificationRequest.builder()
-                        .userId(job.getCreatedBy().getId())
-                .title("New Job Application")
-                .message("You have received a new application for your job posting: " + job.getTitle())
-                .build()
-        );
+                .userId(job.getCreatedBy().getId())
+                .title("Đơn ứng tuyển mới")
+                .message("Bạn vừa nhận được một đơn ứng tuyển mới cho công việc: " + job.getTitle())
+                .build());
 
-        applicationRepository.save(application);
-
-        Long appCount = applicationRepository.countByJobId(job.getId());
-        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
-        jobRepository.save(job);
-
-        return applicationMapper.toApplicationResponse(application);
+        ApplicationResponse res = applicationMapper.toApplicationResponse(application);
+        res.setMatchScore(matchScore);
+        return res;
     }
 
-    // Ứng viên xem danh sách các đơn ứng tuyển của chính mình.
-    public PageResponse<ApplicationResponse> getMyApplications(int page, int size) {
-        User user = getCurrentUser();
+    // ------------------------------------------------
+    // Ứng viên xem danh sách ứng tuyển của chính mình
+    // ------------------------------------------------
+    public PageResponse<ApplicationListResponse> getMyApplications(int page, int size) {
+        UUID userId = getCurrentUserId();
         Pageable pageable = PageRequest.of(page, size);
-        Page<Application> applicationPage = applicationRepository.findByUserIdOrderByAppliedAtDesc(user.getId(), pageable);
+        Page<Application> apps = applicationRepository.findByUserIdOrderByAppliedAtDesc(userId, pageable);
 
-        return PageResponse.<ApplicationResponse>builder()
-                .currentPage(applicationPage.getNumber())
+        return PageResponse.<ApplicationListResponse>builder()
+                .currentPage(apps.getNumber())
                 .pageSize(size)
-                .totalElements(applicationPage.getTotalElements())
-                .totalPages(applicationPage.getTotalPages())
-                .data(applicationPage.getContent()
+                .totalElements(apps.getTotalElements())
+                .totalPages(apps.getTotalPages())
+                .data(apps.getContent()
                         .stream()
-                        .map(applicationMapper::toApplicationResponse)
+                        .map(app -> {
+                            double score = 0.0;
+                            try {
+                                score = matchingService.calculateMatchScore(app.getUser(), app.getJob());
+                            } catch (Exception e) {
+                                log.warn("⚠ Không thể tính matchScore cho {}", app.getUser().getEmail());
+                            }
+                            ApplicationListResponse dto = applicationMapper.toListResponse(app);
+                            dto.setMatchScore(score);
+                            return dto;
+                        })
                         .toList())
                 .build();
     }
 
-    // Nhà tuyển dụng xem danh sách ứng viên nộp vào job của mình.
-    public PageResponse<ApplicationResponse> getJobApplications(int page, int size, UUID jobId) {
-        User user = getCurrentUser();
+    // ------------------------------------------------
+    // Nhà tuyển dụng xem danh sách ứng viên theo job
+    // ------------------------------------------------
+    public PageResponse<ApplicationListResponse> getJobApplications(
+            int page, int size, UUID jobId, ApplicationStatus status
+    ) {
+        UUID recruiterId = getCurrentUserId();
 
-        Job job = jobRepository.findById(jobId).orElseThrow(
-                () -> new AppException(ErrorCode.JOB_NOT_FOUND)
-        );
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
 
-        if(!job.getCreatedBy().getId().equals(user.getId())) {
+        if (!job.getCreatedBy().getId().equals(recruiterId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Application> applications = applicationRepository.findByJobIdOrderByAppliedAtDesc(jobId, pageable);
+        Page<Application> applications;
 
-        return PageResponse.<ApplicationResponse>builder()
+        // Nếu có truyền status → lọc theo trạng thái
+        if (status != null) {
+            applications = applicationRepository.findByJobIdAndStatusOrderByAppliedAtDesc(jobId, status, pageable);
+        }
+        // Nếu không truyền → lấy tất cả
+        else {
+            applications = applicationRepository.findByJobIdOrderByAppliedAtDesc(jobId, pageable);
+        }
+
+        return PageResponse.<ApplicationListResponse>builder()
                 .currentPage(applications.getNumber())
                 .pageSize(size)
                 .totalElements(applications.getTotalElements())
                 .totalPages(applications.getTotalPages())
-                .data(applications.getContent()
-                        .stream()
-                        .map(applicationMapper::toApplicationResponse)
-                        .toList())
+                .data(applications.getContent().stream().map(app -> {
+                    double score = 0.0;
+                    try {
+                        score = matchingService.calculateMatchScore(app.getUser(), app.getJob());
+                    } catch (Exception e) {
+                        log.warn("Không thể tính matchScore cho {}", app.getUser().getEmail());
+                    }
+
+                    ApplicationListResponse dto = applicationMapper.toListResponse(app);
+                    dto.setMatchScore(score);
+                    dto.setStatus(app.getStatus());
+                    dto.setAppliedAt(app.getAppliedAt());
+                    return dto;
+                }).toList())
                 .build();
     }
 
-    // Nhà tuyển dụng duyệt / từ chối / hủy đơn ứng tuyển.
+    // ------------------------------------------------
+    // Nhà tuyển dụng cập nhật trạng thái đơn
+    // ------------------------------------------------
     @Transactional
     public ApplicationResponse updateApplicationStatus(UUID applicationId, ApplicationStatus status, String reason) {
-        Application application = applicationRepository.findById(applicationId).orElseThrow(
-                () -> new AppException(ErrorCode.APPLICATION_NOT_FOUND));
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_NOT_FOUND));
 
-        User user = getCurrentUser();
-
-        if(!application.getJob().getCreatedBy().getId().equals(user.getId())) {
+        User recruiter = getCurrentUser();
+        if (!app.getJob().getCreatedBy().getId().equals(recruiter.getId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        application.setStatus(status);
-        if(status == ApplicationStatus.REJECTED) {
-            application.setRejectionReason(reason);
-        }
-        if(status == ApplicationStatus.CANCELLED) {
-            application.setCancelledAt(LocalDateTime.now());
-        }
+        app.setStatus(status);
+        if (status == ApplicationStatus.REJECTED) app.setRejectionReason(reason);
+        if (status == ApplicationStatus.CANCELLED) app.setCancelledAt(LocalDateTime.now());
 
-        application = applicationRepository.save(application);
+        applicationRepository.save(app);
+        updateJobApplicationCount(app.getJob());
+
+        String message = switch (status) {
+            case ACCEPTED -> "Đơn ứng tuyển của bạn đã được chấp nhận.";
+            case REJECTED -> "Đơn ứng tuyển của bạn đã bị từ chối." +
+                    (reason != null ? " Lý do: " + reason : "");
+            case CANCELLED -> "Đơn ứng tuyển của bạn đã bị hủy bởi nhà tuyển dụng.";
+            default -> "Đơn ứng tuyển của bạn đã được cập nhật.";
+        };
 
         notificationService.sendNotification(NotificationRequest.builder()
-                        .userId(application.getUser().getId())
+                .userId(app.getUser().getId())
                 .title("Cập nhật trạng thái đơn ứng tuyển")
-                .message("Đơn ứng tuyển của bạn cho công việc: " + application.getJob().getTitle() +
-                        " đã được " + switch (status) {
-                            case ACCEPTED -> "chấp nhận.";
-                            case REJECTED -> "từ chối" + (reason != null ? ". Lý do: " + reason : "") + ".";
-                            case CANCELLED -> "hủy bởi nhà tuyển dụng.";
-                            default -> "cập nhật.";
-                })
-                .build()
-        );
+                .message(message)
+                .build());
 
-        Job job = application.getJob();
-        Long appCount = applicationRepository.countByJobId(job.getId());
-        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
-        jobRepository.save(job);
-
-        return applicationMapper.toApplicationResponse(application);
+        double score = matchingService.calculateMatchScore(app.getUser(), app.getJob());
+        ApplicationResponse res = applicationMapper.toApplicationResponse(app);
+        res.setMatchScore(score);
+        return res;
     }
 
-    // Ứng viên hủy đơn của chính mình.
+    // ------------------------------------------------
+    // Ứng viên tự hủy đơn
+    // ------------------------------------------------
     @Transactional
     public void cancelApplication(UUID applicationId) {
-        Application application = applicationRepository.findById(applicationId)
+        Application app = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_NOT_FOUND));
 
         User user = getCurrentUser();
-
-        if(!application.getUser().getId().equals(user.getId())) {
+        if (!app.getUser().getId().equals(user.getId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-
-        if(application.getStatus() != ApplicationStatus.PENDING) {
+        if (app.getStatus() != ApplicationStatus.PENDING) {
             throw new AppException(ErrorCode.CANNOT_CANCEL_APPLICATION);
         }
 
-        application.setStatus(ApplicationStatus.CANCELLED);
-        application.setCancelledAt(LocalDateTime.now());
-        applicationRepository.save(application);
-
-        Job job = application.getJob();
-        Long appCount = applicationRepository.countByJobId(job.getId());
-        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
-        jobRepository.save(job);
+        app.setStatus(ApplicationStatus.CANCELLED);
+        app.setCancelledAt(LocalDateTime.now());
+        applicationRepository.save(app);
+        updateJobApplicationCount(app.getJob());
     }
 
+    // ------------------------------------------------
+    // Xem chi tiết đơn ứng tuyển
+    // ------------------------------------------------
+    @Transactional
+    public ApplicationDetailResponse getApplicationDetail(UUID applicationId) {
+        UUID currentUserId = getCurrentUserId();
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_NOT_FOUND));
 
+        if (!app.getUser().getId().equals(currentUserId)
+                && !app.getJob().getCreatedBy().getId().equals(currentUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        double score = matchingService.calculateMatchScore(app.getUser(), app.getJob());
+        ApplicationDetailResponse res = applicationMapper.toDetailResponse(app);
+        res.setMatchScore(score);
+        return res;
+    }
 }

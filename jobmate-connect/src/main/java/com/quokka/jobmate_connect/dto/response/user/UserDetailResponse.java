@@ -2,6 +2,8 @@ package com.quokka.jobmate_connect.dto.response.user;
 
 
 import com.quokka.jobmate_connect.constant.VerificationStatus;
+import com.quokka.jobmate_connect.dto.response.file.FileResponse;
+import com.quokka.jobmate_connect.dto.response.file.FileResumeResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponse {
+public class UserDetailResponse {
     UUID id;
     String email;
     String fullName;
@@ -26,7 +28,6 @@ public class UserResponse {
     Double  longitude;
     String avatarUrl;
     String skills;
-    String resumeUrl;
     Set<RoleResponse> roles;
     boolean isTwoFaEnabled;
     VerificationStatus verificationStatus;
@@ -38,11 +39,11 @@ public class UserResponse {
     String status;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
-
     String preferredJobType;
     String availableDays;
     String availableTime;
     BigDecimal preferredMinSalary;
 
     String bio;
+    FileResumeResponse resume;
 }

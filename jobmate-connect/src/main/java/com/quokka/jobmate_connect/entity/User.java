@@ -48,7 +48,6 @@ public class User {
     @Column
     String avatarUrl;
 
-
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     Set<Role> roles;
@@ -112,6 +111,12 @@ public class User {
     void onCreate() {
         if(createdAt == null) {
             createdAt = LocalDateTime.now();
+            trustScore = 0f;
+            reviewCount = 0;
+            violationCount = 0;
+            badgeLevel = "None";
+            status = "ACTIVE";
+           verificationStatus = VerificationStatus.UNVERIFIED;
         }
     }
 

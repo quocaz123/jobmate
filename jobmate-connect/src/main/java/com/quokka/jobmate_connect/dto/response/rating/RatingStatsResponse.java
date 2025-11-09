@@ -1,10 +1,6 @@
 package com.quokka.jobmate_connect.dto.response.rating;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.util.List;
@@ -19,6 +15,8 @@ public class RatingStatsResponse {
     Double averageRating;
     Long totalRatings;
     List<Map<String, Object>> ratingDistribution;
+
+    // Thông tin profile phụ trợ
     String badgeLevel;
     Float trustScore;
 }
