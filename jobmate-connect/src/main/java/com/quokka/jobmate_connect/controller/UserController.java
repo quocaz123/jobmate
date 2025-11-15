@@ -3,14 +3,14 @@ package com.quokka.jobmate_connect.controller;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.LocationRequest;
+import com.quokka.jobmate_connect.dto.request.user.TwoFaUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
-import com.quokka.jobmate_connect.dto.response.user.LocationResponse;
-import com.quokka.jobmate_connect.dto.response.user.UserDetailResponse;
-import com.quokka.jobmate_connect.dto.response.user.UserResponse;
+import com.quokka.jobmate_connect.dto.response.user.*;
 import com.quokka.jobmate_connect.service.LocationService;
 import com.quokka.jobmate_connect.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,11 +39,13 @@ public class UserController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
-    ApiResponse<PageResponse<UserResponse>> getAllUsers(
+    ApiResponse<PageResponse<UserListResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String role) {
 
-        var results = userService.getAllUsers(page, size);
+        var results = userService.getAllUsers(page, size, status, role);
         return ApiResponse.success(results);
     }
 
@@ -74,6 +76,11 @@ public class UserController {
     public ApiResponse<Void> updateLocation(@RequestBody LocationRequest request) {
         locationService.updateLocation(request);
         return ApiResponse.success(null);
+    }
+
+    @PutMapping("/two-fa")
+    public ApiResponse<TwoFaStatusResponse> updateTwoFa(@Valid @RequestBody TwoFaUpdateRequest request) {
+        return ApiResponse.success(userService.updateTwoFactorStatus(request));
     }
 
     @GetMapping("/location/auto")

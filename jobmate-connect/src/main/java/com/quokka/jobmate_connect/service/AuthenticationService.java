@@ -119,6 +119,10 @@ public class AuthenticationService {
                 .findByEmail(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+            throw new AppException(ErrorCode.USER_BANNED);
+        }
+
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!authenticated)
@@ -217,6 +221,9 @@ public class AuthenticationService {
 
         if (existingUser.isPresent()) {
             user = existingUser.get();
+            if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+                throw new AppException(ErrorCode.USER_BANNED);
+            }
         } else {
 
             HashSet<Role> roles = new HashSet<>();
@@ -241,7 +248,7 @@ public class AuthenticationService {
             return AuthenticationResponse.builder()
                     .requiresPasswordSetup(true)
                     .userEmail(user.getEmail())
-                    .userName(user.getFullName())
+                    .userId(user.getId().toString())
                     .message("Please set up your password to complete registration.")
                     .token(token)
                     .build();
@@ -306,6 +313,10 @@ public class AuthenticationService {
         var user = userRepository.findById(UUID.fromString(request.getUserId()))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+            throw new AppException(ErrorCode.USER_BANNED);
+        }
+
         boolean isValid = otpService.validateOtp(request.getUserId(), request.getOtp());
 
         if (!isValid)
@@ -365,7 +376,7 @@ public class AuthenticationService {
         return SetPasswordResponse.builder()
                 .message("Password set successfully!")
                 .success(true)
-                .redirectUrl("/dashboard")
+                .redirectUrl("/home")
                 .build();
     }
 

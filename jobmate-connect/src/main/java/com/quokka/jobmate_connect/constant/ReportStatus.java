@@ -1,8 +1,7 @@
 package com.quokka.jobmate_connect.constant;
 
 public enum ReportStatus {
-    PENDING,     // Chờ xử lý
-    UNDER_REVIEW, // Đang xem xét
-    RESOLVED,    // Đã giải quyết
-    REJECTED,    // Từ chối
+    PENDING,    // chờ duyệt
+    REVIEWED,   // đã duyệt, hợp lệ
+    REJECTED    // đã duyệt, không hợp lệ
 }

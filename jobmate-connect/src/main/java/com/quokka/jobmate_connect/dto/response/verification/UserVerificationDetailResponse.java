@@ -15,8 +15,11 @@ public class UserVerificationDetailResponse {
     UUID userId;
     String email;
     String fullName;
+    String address;
+    String contactPhone;
     String avatarUrl;
     String cccdFrontUrl;
     String cccdBackUrl;
+    String rejectionReason;
     LocalDateTime requestedAt;
 }

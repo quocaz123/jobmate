@@ -32,6 +32,12 @@ public class NotificationController {
         return ApiResponse.success(notificationService.getNotificationsByUserId());
     }
 
+    @DeleteMapping("/me")
+    public ApiResponse<Void> deleteMyNotifications() {
+        notificationService.deleteAllMyNotifications();
+        return ApiResponse.success(null);
+    }
+
     @PostMapping("/{id}/read")
     public ApiResponse<Void> markAsRead(@PathVariable UUID id) {
         notificationService.markAsRead(id);

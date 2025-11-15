@@ -4,11 +4,10 @@ import com.quokka.jobmate_connect.constant.FileTypeStatus;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.PasswordUpdateRequest;
+import com.quokka.jobmate_connect.dto.request.user.TwoFaUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
-import com.quokka.jobmate_connect.dto.response.user.RoleResponse;
-import com.quokka.jobmate_connect.dto.response.user.UserDetailResponse;
-import com.quokka.jobmate_connect.dto.response.user.UserResponse;
+import com.quokka.jobmate_connect.dto.response.user.*;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
@@ -71,7 +70,6 @@ public class UserService {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-
         UserDetailResponse response = new UserDetailResponse();
         response.setId(user.getId());
         response.setEmail(user.getEmail());
@@ -99,8 +97,8 @@ public class UserService {
         response.setTwoFaEnabled(user.is_two_fa_enabled());
 
         // map roles (tránh null)
-        Set<RoleResponse> roleResponses = user.getRoles() == null ? Set.of() :
-                user.getRoles().stream()
+        Set<RoleResponse> roleResponses = user.getRoles() == null ? Set.of()
+                : user.getRoles().stream()
                         .map(role -> RoleResponse.builder()
                                 .name(role.getName())
                                 .description(role.getDescription())
@@ -108,26 +106,33 @@ public class UserService {
                         .collect(Collectors.toSet());
         response.setRoles(roleResponses);
 
-
-       fileMgtRepository.findByOwnerIdAndType(userId, FileTypeStatus.RESUME)
+        fileMgtRepository.findByOwnerIdAndType(userId, FileTypeStatus.RESUME)
                 .map(fileMapper::toFileResumeResponse)
                 .ifPresent(response::setResume);
 
         return response;
     }
 
-    public PageResponse<UserResponse> getAllUsers(int page, int size) {
+    public PageResponse<UserListResponse> getAllUsers(int page, int size, String status, String roleName) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<User> userPage = userRepository.findAll(pageable);
 
-        List<UserResponse> userResponses = userPage.getContent()
+        // Tìm Role nếu roleName được cung cấp
+        Role role = null;
+        if (roleName != null && !roleName.trim().isEmpty()) {
+            role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+        }
+
+        Page<User> userPage = userRepository.findUserByStatus(status, pageable, role);
+
+        List<UserListResponse> userResponses = userPage.getContent()
                 .stream()
-                .map(userMapper::toUserResponse)
+                .map(userMapper::toUserListResponse)
                 .toList();
 
-        return PageResponse.<UserResponse>builder()
+        return PageResponse.<UserListResponse>builder()
                 .currentPage(userPage.getNumber())
-                .totalElements(userPage.getTotalElements())
+                .totalPages(userPage.getTotalPages())
                 .pageSize(userPage.getSize())
                 .totalElements(userPage.getTotalElements())
                 .data(userResponses)
@@ -149,7 +154,8 @@ public class UserService {
             double[] coordinates = geocodingService.getCoordinates(request.getAddress());
             user.setLatitude(coordinates[0]);
             user.setLongitude(coordinates[1]);
-            log.info("Geocoding address: {} to coordinates: {}, {}", request.getAddress(), coordinates[0], coordinates[1]);
+            log.info("Geocoding address: {} to coordinates: {}, {}", request.getAddress(), coordinates[0],
+                    coordinates[1]);
         }
 
         user.setUpdatedAt(LocalDateTime.now());
@@ -201,5 +207,38 @@ public class UserService {
 
         currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(currentUser);
+    }
+
+    public TwoFaStatusResponse updateTwoFactorStatus(TwoFaUpdateRequest request) {
+        Jwt auth = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID userId = UUID.fromString(auth.getClaim("userId"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean targetEnabled = Boolean.TRUE.equals(request.getEnabled());
+        boolean currentEnabled = user.is_two_fa_enabled();
+
+        if (currentEnabled == targetEnabled) {
+            String message = targetEnabled
+                    ? "Two-factor authentication is already enabled."
+                    : "Two-factor authentication is already disabled.";
+            return TwoFaStatusResponse.builder()
+                    .enabled(currentEnabled)
+                    .message(message)
+                    .build();
+        }
+
+        user.set_two_fa_enabled(targetEnabled);
+        userRepository.save(user);
+
+        String message = targetEnabled
+                ? "Two-factor authentication has been enabled successfully."
+                : "Two-factor authentication has been disabled successfully.";
+
+        return TwoFaStatusResponse.builder()
+                .enabled(targetEnabled)
+                .message(message)
+                .build();
     }
 }

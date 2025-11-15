@@ -11,10 +11,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,15 +29,13 @@ public class NotificationService {
     NotificationMapper notificationMapper;
     UserRepository userRepository;
 
-
-
     public NotificationResponse sendNotification(NotificationRequest request) {
         Notification notification = Notification.builder()
                 .userId(request.getUserId())
                 .title(request.getTitle())
                 .message(request.getMessage())
                 .type(request.getType())
-                .isRead(false)
+                .read(false)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -49,7 +47,7 @@ public class NotificationService {
     public void notifyAdmins(String title, String message) {
         List<UUID> adminIds = userRepository.findAdminIds();
 
-        for(UUID admin : adminIds) {
+        for (UUID admin : adminIds) {
             sendNotification(NotificationRequest.builder()
                     .userId(admin)
                     .title(title)
@@ -72,6 +70,13 @@ public class NotificationService {
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
         notification.setRead(true);
         notificationRepository.save(notification);
+    }
+
+    @Transactional
+    public void deleteAllMyNotifications() {
+        var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID userId = UUID.fromString(jwt.getClaim("userId").toString());
+        notificationRepository.deleteByUserId(userId);
     }
 
 }

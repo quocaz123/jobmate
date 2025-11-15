@@ -34,10 +34,9 @@ public class Notification {
     NotificationType type;
 
     @Column
-    boolean isRead;
+    Boolean read;
 
     @Column
     LocalDateTime createdAt;
-
 
 }

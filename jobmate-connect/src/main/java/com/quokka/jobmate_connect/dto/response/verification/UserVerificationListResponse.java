@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class UserVerificationListResponse {
     UUID userId;
+    String avatarUrl;
     String email;
     String fullName;
     LocalDateTime requestedAt;

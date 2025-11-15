@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.controller;
 
+import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationDetailResponse;
@@ -23,8 +24,9 @@ public class AdminVerifyController {
     @GetMapping("/pending")
     public ApiResponse<PageResponse<UserVerificationListResponse>> getPendingUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        var result = userVerificationService.getPendingUsers(page, size);
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "PENDING", required = false) VerificationStatus status) {
+        var result = userVerificationService.getPendingUsers(page, size, status);
         return ApiResponse.success(result);
     }
 
@@ -45,8 +47,9 @@ public class AdminVerifyController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{userId}/reject")
     public ApiResponse<String> reject(@PathVariable UUID userId,
-                                      @RequestParam String reason) {
+            @RequestParam String reason) {
         userVerificationService.rejectVerification(userId, reason);
         return ApiResponse.success("User verification rejected: " + reason);
     }
+
 }

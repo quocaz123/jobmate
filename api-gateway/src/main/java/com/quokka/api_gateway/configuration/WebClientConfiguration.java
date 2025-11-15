@@ -17,13 +17,15 @@ public class WebClientConfiguration {
 
     @Bean
     WebClient webClient() {
+        // Sử dụng environment variable hoặc default to localhost cho local development
+        String baseUrl = System.getenv().getOrDefault("JOBMATE_CONNECT_URL", "http://localhost:8080/jobmate");
         return WebClient.builder()
-                .baseUrl("http://localhost:8080/jobmate")
+                .baseUrl(baseUrl)
                 .build();
     }
 
     @Bean
-    CorsWebFilter corsWebFilter(){
+    CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowedOrigins(List.of("*"));
         corsConfiguration.setAllowedHeaders(List.of("*"));

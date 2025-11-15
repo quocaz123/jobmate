@@ -17,6 +17,6 @@ public class NotificationResponse {
     String title;
     String message;
     NotificationType type;
-    boolean isRead;
+    Boolean read;
     String createdAt;
 }

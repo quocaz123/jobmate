@@ -27,6 +27,7 @@ public enum ErrorCode {
     INVALID_OLD_PASSWORD(2007, "Old password is incorrect", HttpStatus.BAD_REQUEST),
     EMAIL_ALREADY_EXISTS(2008, "Email already exists", HttpStatus.CONFLICT),
     LOCATION_ALREADY_SET(2009, "Location has already been set and cannot be changed", HttpStatus.BAD_REQUEST),
+    ROLE_NOT_FOUND(2010, "Role not found", HttpStatus.NOT_FOUND),
 
     // ========== 3xxx: JOB ==========
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),
@@ -49,7 +50,18 @@ public enum ErrorCode {
     CANNOT_RATE_SELF(6002, "Users cannot rate themselves.", HttpStatus.BAD_REQUEST),
     RATING_NOT_FOUND(6003, "Rating not found", HttpStatus.NOT_FOUND),
     RATING_NOT_ALLOWED(6004, "Rating is not allowed for this user or job", HttpStatus.BAD_REQUEST),
-    RATING_NOT_ALLOWED_BEFORE_DEADLINE(6005, "Rating is not allowed before the job completion deadline", HttpStatus.BAD_REQUEST)
+    RATING_NOT_ALLOWED_BEFORE_DEADLINE(6005, "Rating is not allowed before the job completion deadline",
+            HttpStatus.BAD_REQUEST),
+
+    REPORT_NOT_FOUND(7001, "Report not found", HttpStatus.NOT_FOUND),
+    REPORT_ALREADY_SUBMITTED(7002, "You have already submitted a report for this item.", HttpStatus.CONFLICT),
+
+    // ========== 8xxx: AUTH / ACCOUNT STATUS ==========
+    USER_BANNED(8001, "Tài khoản của bạn đã bị khóa do vi phạm tiêu chuẩn cộng đồng. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.", HttpStatus.BAD_REQUEST),
+    USER_NOT_VERIFIED(8002, "User account is not verified", HttpStatus.FORBIDDEN),
+    ALREADY_EMPLOYER(8003, "User is already an employer", HttpStatus.BAD_REQUEST),
+
+
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

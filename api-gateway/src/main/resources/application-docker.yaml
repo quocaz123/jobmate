@@ -1,0 +1,77 @@
+server:
+  port: 8888
+
+app:
+  api-prefix: /api/v1
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 30s
+        pool:
+          type: ELASTIC
+          max-connections: 500
+          max-idle-time: 30s
+          eviction-interval: 30s
+        compression: true
+      server:
+        webflux:
+          routes:
+            - id: identity_service
+              uri: http://jobmate-connect:8080
+              predicates:
+                - Path=${app.api-prefix}/jobmate/**
+              filters:
+                - StripPrefix=2
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    methods: GET,POST,PUT,PATCH
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 2000ms
+                      factor: 2
+                      basedOnPreviousValue: false
+                    exceptions: java.net.ConnectException,java.net.SocketTimeoutException,java.io.IOException
+
+            - id: notification_service
+              uri: http://notification-service:8081
+              predicates:
+                - Path=${app.api-prefix}/notification/**
+              filters:
+                - StripPrefix=2
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    methods: GET,POST,PUT,PATCH
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 2000ms
+                      factor: 2
+                      basedOnPreviousValue: false
+                    exceptions: java.net.ConnectException,java.net.SocketTimeoutException,java.io.IOException
+
+            - id: chat_service
+              uri: http://chat-service:8082
+              predicates:
+                - Path=${app.api-prefix}/chat/**
+              filters:
+                - StripPrefix=2
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    methods: GET,POST,PUT,PATCH
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 2000ms
+                      factor: 2
+                      basedOnPreviousValue: false
+                    exceptions: java.net.ConnectException,java.net.SocketTimeoutException,java.io.IOException
+

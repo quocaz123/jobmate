@@ -29,7 +29,6 @@ public class User {
     @Column(nullable = false)
     String password;
 
-
     @Column
     String fullName;
 
@@ -40,10 +39,10 @@ public class User {
     String address;
 
     @Column
-    Double  latitude;
+    Double latitude;
 
     @Column
-    Double  longitude;
+    Double longitude;
 
     @Column
     String avatarUrl;
@@ -54,7 +53,6 @@ public class User {
 
     @Column(name = "is_two_fa_enabled", nullable = false, columnDefinition = "boolean default false")
     boolean is_two_fa_enabled = false;
-
 
     @Enumerated(EnumType.STRING)
     VerificationStatus verificationStatus;
@@ -81,7 +79,7 @@ public class User {
     String badgeLevel;
 
     @Column
-    String status ;
+    String status;
 
     @Column
     LocalDateTime createdAt;
@@ -109,14 +107,14 @@ public class User {
 
     @PrePersist
     void onCreate() {
-        if(createdAt == null) {
+        if (createdAt == null) {
             createdAt = LocalDateTime.now();
             trustScore = 0f;
             reviewCount = 0;
             violationCount = 0;
             badgeLevel = "None";
             status = "ACTIVE";
-           verificationStatus = VerificationStatus.UNVERIFIED;
+            verificationStatus = VerificationStatus.UNVERIFIED;
         }
     }
 

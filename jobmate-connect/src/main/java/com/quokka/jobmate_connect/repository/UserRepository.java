@@ -3,7 +3,7 @@ package com.quokka.jobmate_connect.repository;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
-import io.lettuce.core.dynamic.annotation.Param;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,7 +18,9 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
+
     Optional<User> findByEmail(String email);
+
     Page<User> findByVerificationStatus(VerificationStatus status, Pageable pageable);
 
     @Query("SELECT u.id from User u JOIN u.roles r WHERE r.name = 'ADMIN'")
@@ -30,4 +32,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     List<User> findTop10ByOrderByTrustScoreDesc();
 
+    @Query("SELECT DISTINCT u FROM User u " +
+            "LEFT JOIN u.roles r " +
+            "WHERE (:status IS NULL OR u.status = :status) " +
+            "AND (:role IS NULL OR r = :role) " +
+            "ORDER BY u.createdAt DESC")
+    Page<User> findUserByStatus(@Param("status") String status,
+            Pageable pageable,
+            @Param("role") Role role);
 }
