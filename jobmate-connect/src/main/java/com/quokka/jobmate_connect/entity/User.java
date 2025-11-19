@@ -23,7 +23,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     String email;
 
     @Column(nullable = false)

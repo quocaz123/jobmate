@@ -1,6 +1,8 @@
 package com.quokka.jobmate_connect.dto.response.job;
 
 import com.quokka.jobmate_connect.constant.JobStatus;
+import com.quokka.jobmate_connect.constant.JobType;
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,12 +22,12 @@ public class JobResponse {
     String description;
     String requirements;
     String benefits;
-    String salaryUnit;
+    SalaryUnitType salaryUnit;
     String location;
     Double latitude;
     Double longitude;
     BigDecimal salary;
-    String jobType;
+    JobType jobType;
     String skills;
     JobStatus status;
     String createdByName;

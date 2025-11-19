@@ -14,7 +14,7 @@ public interface FileMapper {
     FileResponse toFileMgmtResponse(FileMgmt fileMgmt);
 
     @Mapping(target = "type", expression = "java(fileMgmt.getType() != null ? fileMgmt.getType().toString() : null)")
-    @Mapping(target = "fileName", ignore = true)
+    @Mapping(target = "fileName", expression = "java(fileMgmt.getUrl() != null ? fileMgmt.getUrl().substring(fileMgmt.getUrl().lastIndexOf('/') + 1) : null)")
     FileResumeResponse toFileResumeResponse(FileMgmt fileMgmt);
 
     @AfterMapping

@@ -1,6 +1,8 @@
 package com.quokka.jobmate_connect.entity;
 
 import com.quokka.jobmate_connect.constant.JobStatus;
+import com.quokka.jobmate_connect.constant.JobType;
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -48,13 +50,13 @@ public class Job {
     @Column(precision = 12, scale = 2)
     BigDecimal salary;
 
-    @Column(length = 100)
-    String jobType;
+    @Enumerated(EnumType.STRING)
+    JobType jobType; // FULLTIME / PARTTIME
 
-    @Column(name = "start_at")
+    @Column()
     LocalDateTime startAt;
 
-    @Column(name = "deadline")
+    @Column()
     LocalDateTime deadline;
 
     @Column(columnDefinition = "TEXT")
@@ -68,13 +70,13 @@ public class Job {
     @JoinColumn(name = "user_id", nullable = false)
     User createdBy;
 
-    @Column(name = "verified_by")
+    @Column()
     UUID verifiedBy;
 
-    @Column(name = "verified_at")
+    @Column()
     LocalDateTime verifiedAt;
 
-    @Column(name = "rejection_reason")
+    @Column()
     String rejectionReason;
 
     @Column(name = "is_auto_verified")
@@ -86,30 +88,30 @@ public class Job {
     @Column(name = "updated_at")
     LocalDateTime updatedAt = LocalDateTime.now();
 
-    @Column(name = "company_name", length = 255)
+    @Column(length = 255)
     String companyName;
 
-    @Column(name = "application_count", columnDefinition = "INTEGER DEFAULT 0")
+    @Column(columnDefinition = "INTEGER DEFAULT 0")
     Integer applicationCount = 0;
 
-    @Column(name = "salary_unit", length = 50)
-    String salaryUnit;
+    @Enumerated(EnumType.STRING)
+    SalaryUnitType salaryUnit;
 
-    @Column(name = "working_hours", length = 255)
+    @Column(length = 255)
     String workingHours;
 
-    @Column(name = "working_days", length = 100)
+    @Column(length = 100)
     String workingDays;
 
-    @Column(name = "work_mode", length = 20)
+    @Column(length = 20)
     String workMode;
 
-    @Column(name = "category", length = 100)
+    @Column(length = 100)
     String category;
 
-    @Column(name = "views_count", columnDefinition = "INTEGER DEFAULT 0")
+    @Column(columnDefinition = "INTEGER DEFAULT 0")
     Integer viewsCount = 0;
 
-    @Column(name = "contact_phone", length = 20)
+    @Column(length = 20)
     String contactPhone;
 }

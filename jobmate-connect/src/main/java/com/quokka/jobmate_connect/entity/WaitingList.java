@@ -1,10 +1,14 @@
 package com.quokka.jobmate_connect.entity;
 
+import com.quokka.jobmate_connect.constant.JobType;
+import com.quokka.jobmate_connect.constant.RequestStatus;
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import com.quokka.jobmate_connect.constant.WaitingListStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,43 +23,71 @@ import java.util.UUID;
 public class WaitingList {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "waiting_id")
     UUID id;
 
+    // Người tạo yêu cầu chờ
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     User user;
 
-    @Column(name = "preferred_job_type", length = 100)
-    String preferredJobType;
-
-    @Column(name = "preferred_location", length = 100)
-    String preferredLocation;
-
-    @Column(columnDefinition = "TEXT")
-    String notes;
+    // Loại công việc muốn tìm
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    WaitingListStatus status = WaitingListStatus.WAITING;
+    JobType jobType; // FULLTIME / PARTTIME
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id")
-    Job job;
+    // Kỹ năng mong muốn sử dụng
+    @Column(columnDefinition = "TEXT")
+    String skills;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    @Builder.Default
-    LocalDateTime createdAt = LocalDateTime.now();
+    // Mức lương tối thiểu mong muốn
+    @Column(precision = 12, scale = 2)
+    BigDecimal expectedMinSalary;
+
+    @Enumerated(EnumType.STRING)
+    SalaryUnitType expectedSalaryUnit; // PER_HOUR / PER_DAY / PER_MONTH
+
+    // Vị trí mong muốn làm việc
+    @Column
+    Double latitude;
+
+    @Column
+    Double longitude;
+
+    // Bán kính tìm việc (km)
+    @Column
+    Integer searchRadius;
+
+    // Lịch rảnh: ngày
+    @Column
+    String availableDays;
+
+    // Lịch rảnh: buổi
+    @Column
+    String availableTime;
+
+    // Ghi chú thêm
+    @Column(columnDefinition = "TEXT")
+    String note;
+
+    @Enumerated(EnumType.STRING)
+    RequestStatus status;
+
+    @Column
+    LocalDateTime createdAt;
+
+    @Column
+    LocalDateTime updatedAt;
 
     @PrePersist
     void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-        if (status == null) {
-            status = WaitingListStatus.WAITING;
-        }
+        createdAt = LocalDateTime.now();
+        status = RequestStatus.PENDING;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
+
 

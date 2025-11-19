@@ -17,27 +17,27 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    boolean existsByEmail(String email);
+        boolean existsByEmail(String email);
 
-    Optional<User> findByEmail(String email);
+        Optional<User> findByEmail(String email);
 
-    Page<User> findByVerificationStatus(VerificationStatus status, Pageable pageable);
+        Page<User> findByVerificationStatus(VerificationStatus status, Pageable pageable);
 
-    @Query("SELECT u.id from User u JOIN u.roles r WHERE r.name = 'ADMIN'")
-    List<UUID> findAdminIds();
+        @Query("SELECT u.id from User u JOIN u.roles r WHERE r.name = 'ADMIN'")
+        List<UUID> findAdminIds();
 
-    Page<User> findByOrderByTrustScoreDesc(Pageable pageable);
+        Page<User> findByOrderByTrustScoreDesc(Pageable pageable);
 
-    Page<User> findByBadgeLevelOrderByTrustScoreDesc(String badgeLevel, Pageable pageable);
+        Page<User> findByBadgeLevelOrderByTrustScoreDesc(String badgeLevel, Pageable pageable);
 
-    List<User> findTop10ByOrderByTrustScoreDesc();
+        List<User> findTop10ByOrderByTrustScoreDesc();
 
-    @Query("SELECT DISTINCT u FROM User u " +
-            "LEFT JOIN u.roles r " +
-            "WHERE (:status IS NULL OR u.status = :status) " +
-            "AND (:role IS NULL OR r = :role) " +
-            "ORDER BY u.createdAt DESC")
-    Page<User> findUserByStatus(@Param("status") String status,
-            Pageable pageable,
-            @Param("role") Role role);
+        @Query("SELECT DISTINCT u FROM User u " +
+                        "LEFT JOIN u.roles r " +
+                        "WHERE (:status IS NULL OR u.status = :status) " +
+                        "AND (:role IS NULL OR r = :role) " +
+                        "ORDER BY u.createdAt DESC")
+        Page<User> findUserByStatus(@Param("status") String status,
+                        Pageable pageable,
+                        @Param("role") Role role);
 }

@@ -35,7 +35,7 @@ public class MatchingService {
             }
 
             // 2️⃣ Loại việc (Full-time / Part-time / Freelance)
-            if (equalsIgnoreCaseSafe(user.getPreferredJobType(), job.getJobType())) {
+            if (equalsIgnoreCaseSafe(user.getPreferredJobType(), job.getJobType().name())) {
                 score += 10;
             }
 

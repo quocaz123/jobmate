@@ -1,10 +1,8 @@
 package com.quokka.jobmate_connect.constant;
 
-public enum WaitingListStatus {
+public enum RequestStatus {
     PENDING,
     MATCHED,
-    CONNECTED,
+    CANCELLED,
     CLOSED
 }
-
-

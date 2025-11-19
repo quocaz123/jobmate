@@ -7,7 +7,6 @@ import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationDetailResponse;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationListResponse;
-import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
@@ -18,6 +17,7 @@ import com.quokka.jobmate_connect.kafka.topic.VerificationResultProducer;
 import com.quokka.jobmate_connect.repository.FileMgtRepository;
 import com.quokka.jobmate_connect.repository.RoleRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
+import com.quokka.jobmate_connect.service.ESService.JobIndexerService;
 import jakarta.transaction.Transactional;
 import org.springframework.lang.Nullable;
 import lombok.AccessLevel;
@@ -46,6 +46,7 @@ public class UserVerificationService {
         VerificationEventProducer verificationEventProducer;
         VerificationResultProducer verificationResultProducer;
         RoleRepository roleRepository;
+
 
         public void requestVerification() {
                 var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

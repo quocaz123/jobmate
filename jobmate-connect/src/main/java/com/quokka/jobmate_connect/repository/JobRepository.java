@@ -17,6 +17,8 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     Page<Job> findByCreatedById(UUID userId, Pageable pageable);
 
+    Page<Job> findAllJobsByStatus(JobStatus status, Pageable pageable);
+
     // Lọc theo người tạo và trạng thái
     Page<Job> findByCreatedByIdAndStatus(UUID userId, JobStatus status, Pageable pageable);
 

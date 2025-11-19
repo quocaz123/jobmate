@@ -26,7 +26,6 @@ public class UserResponse {
     Double  longitude;
     String avatarUrl;
     String skills;
-    String resumeUrl;
     Set<RoleResponse> roles;
     boolean isTwoFaEnabled;
     VerificationStatus verificationStatus;

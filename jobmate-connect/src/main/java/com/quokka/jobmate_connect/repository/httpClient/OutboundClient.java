@@ -13,4 +13,3 @@ public interface OutboundClient {
     @PostMapping(value = "/token", produces = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     ExchangeTokenRespone exchangeToken(@QueryMap ExchangeTokenRequest request);
 }
-

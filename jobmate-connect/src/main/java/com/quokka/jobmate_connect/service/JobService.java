@@ -17,6 +17,7 @@ import com.quokka.jobmate_connect.repository.ApplicationRepository;
 import com.quokka.jobmate_connect.repository.JobRepository;
 import com.quokka.jobmate_connect.repository.RatingRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
+import com.quokka.jobmate_connect.service.ESService.JobIndexerService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -45,6 +46,7 @@ public class JobService {
         NotificationService notificationService;
         ApplicationRepository applicationRepository;
         RatingRepository ratingRepository;
+        JobIndexerService indexer;
 
         static final double EARTH_RADIUS_KM = 6371.0;
         private final UserRepository userRepository;
@@ -62,7 +64,7 @@ public class JobService {
                                 .title(request.getTitle())
                                 .description(request.getDescription())
                                 .requirements(request.getRequirements())
-                                 .benefits(request.getBenefits())
+                                .benefits(request.getBenefits())
                                 .location(request.getLocation())
                                 .latitude(coordinates[0])
                                 .longitude(coordinates[1])
@@ -99,6 +101,7 @@ public class JobService {
                                 .message("Công việc '" + job.getTitle() + "' đã được tạo và đang chờ phê duyệt.")
                                 .type(NotificationType.SYSTEM)
                                 .build());
+                indexer.index(job);
 
                 return mapToJobResponseWithStats(job);
         }
@@ -112,7 +115,7 @@ public class JobService {
 
         public PageResponse<JobResponse> getAllJobs(int page, int size) {
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-                Page<Job> jobPage = jobRepository.findAll(pageable);
+                Page<Job> jobPage = jobRepository.findAllJobsByStatus(JobStatus.PENDING_REVIEW, pageable);
 
                 List<JobResponse> responses = jobPage.getContent().stream()
                                 .map(this::mapToJobResponseWithStats)
