@@ -1,6 +1,7 @@
 package com.quokka.Notification_Service.configuration;
 
 import com.quokka.Notification_Service.kafka.dto.SendOtpEvent;
+import com.quokka.Notification_Service.kafka.dto.UserStatusChangeEvent;
 import com.quokka.Notification_Service.kafka.dto.VerificationRequestEvent;
 import com.quokka.Notification_Service.kafka.dto.VerificationResultEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -79,6 +80,20 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, VerificationResultEvent> verificationResultEventKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, VerificationResultEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(verificationResultEventConsumerFactory());
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, UserStatusChangeEvent> userStatusChangeEventConsumerFactory() {
+        Map<String, Object> props = baseConsumerConfigs();
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, UserStatusChangeEvent.class);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, UserStatusChangeEvent> userStatusChangeEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, UserStatusChangeEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(userStatusChangeEventConsumerFactory());
         return factory;
     }
 }

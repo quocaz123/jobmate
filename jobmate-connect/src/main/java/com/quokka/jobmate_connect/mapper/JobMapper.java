@@ -1,6 +1,5 @@
 package com.quokka.jobmate_connect.mapper;
 
-import com.quokka.jobmate_connect.dto.request.job.JobCreationRequest;
 import com.quokka.jobmate_connect.dto.response.job.JobDetailResponse;
 import com.quokka.jobmate_connect.dto.response.job.JobResponse;
 import com.quokka.jobmate_connect.dto.response.user.EmployerResponse;
@@ -12,14 +11,17 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface JobMapper {
 
-    Job toJob(JobCreationRequest request);
-
     @Mapping(source = "createdBy.fullName", target = "createdByName")
+    @Mapping(source = "category.id", target = "categoryId")
     @Mapping(target = "distance", ignore = true)
     @Mapping(target = "averageRating", ignore = true)
     @Mapping(target = "ratingCount", ignore = true)
     JobResponse toJobResponse(Job job);
 
+    @Mapping(source = "createdBy.fullName", target = "createdByName")
+    @Mapping(source = "category.id", target = "categoryId")
+    @Mapping(target = "averageRating", ignore = true)
+    @Mapping(target = "ratingCount", ignore = true)
     @Mapping(target = "employer", expression = "java(toEmployerResponse(job.getCreatedBy()))")
     JobDetailResponse toJobDetailResponse(Job job);
 

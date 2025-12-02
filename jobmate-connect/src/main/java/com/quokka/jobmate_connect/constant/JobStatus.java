@@ -5,5 +5,6 @@ public enum JobStatus {
     REJECTED,
     CLOSED,
     PENDING_REVIEW,
-    AUTO_CLOSED
+    AUTO_CLOSED,
+    DELETED
 }

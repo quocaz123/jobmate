@@ -41,9 +41,11 @@ public class JobResponse {
     String workingHours;
     String workingDays;
     String workMode;
-    String category;
+    String categoryName;
+    UUID categoryId;
     Integer viewsCount;
     String contactPhone;
     Float averageRating;
     Integer ratingCount;
+    Integer targetApplicants;
 }

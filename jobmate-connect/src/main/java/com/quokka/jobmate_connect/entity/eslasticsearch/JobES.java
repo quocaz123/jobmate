@@ -47,6 +47,9 @@ public class JobES {
     @Field(type = FieldType.Keyword)
     String salaryUnit;
 
+    @Field(type = FieldType.Double)
+    Double salaryPerHour;
+
     @GeoPointField
     GeoPoint location;
 

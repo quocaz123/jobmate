@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.configuration;
 
 import com.quokka.jobmate_connect.kafka.dto.SendOtpEvent;
+import com.quokka.jobmate_connect.kafka.dto.UserStatusChangeEvent;
 import com.quokka.jobmate_connect.kafka.dto.VerificationRequestEvent;
 import com.quokka.jobmate_connect.kafka.dto.VerificationResultEvent;
 import lombok.experimental.NonFinal;
@@ -60,6 +61,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, VerificationResultEvent> verificationResultEventKafkaTemplate() {
         return new KafkaTemplate<>(verificationResultEventProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, UserStatusChangeEvent> userStatusChangeEventProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, UserStatusChangeEvent> userStatusChangeEventKafkaTemplate() {
+        return new KafkaTemplate<>(userStatusChangeEventProducerFactory());
     }
 
 }

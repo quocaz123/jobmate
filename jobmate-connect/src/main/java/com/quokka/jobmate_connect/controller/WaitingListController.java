@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.controller;
 
 import com.quokka.jobmate_connect.dto.ApiResponse;
+import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.waitinglist.CreateWaitingListRequest;
 import com.quokka.jobmate_connect.dto.response.waitinglist.WaitingListResponse;
 import com.quokka.jobmate_connect.service.WaitingListService;
@@ -9,7 +10,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,17 +36,13 @@ public class WaitingListController {
         return ApiResponse.success(null);
     }
 
-    /**
-     * API cho employer xem danh sách waiting list của các ứng viên
-     * Chỉ hiển thị những waiting list có status = PENDING (active)
-     */
+
     @PreAuthorize("hasAnyRole('EMPLOYER', 'ADMIN')")
     @GetMapping("/candidates")
-    public ApiResponse<List<WaitingListResponse>> getActiveCandidates(
-            @RequestParam(required = false) String jobType,
-            @RequestParam(required = false) String skills,
-            @RequestParam(required = false) BigDecimal minSalary) {
-        return ApiResponse.success(waitingListService.getActiveCandidates(jobType, skills, minSalary));
+    public ApiResponse<PageResponse<WaitingListResponse>> getActiveCandidates(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(waitingListService.getActiveCandidates(page, size));
     }
 
 }

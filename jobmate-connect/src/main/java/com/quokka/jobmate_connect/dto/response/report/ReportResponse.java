@@ -13,13 +13,29 @@ import java.util.UUID;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ReportResponse {
     UUID id;
+
+    UUID reporterId;
+    String reporterEmail;
+    String reporterFullName;
+
     String targetType;
     UUID targetId;
+
+    String jobTitle;
+    UUID jobOwnerId;
+    String jobOwnerEmail;
+    String jobOwnerFullName;
+
     String reason;
+
     ReportStatus status;
-    String reporterName;
-    String reporterEmail;
-    String adminNote;
+
+    String adminNote; // admin ghi lý do duyệt/từ chối
+    Boolean canAppeal; // employer có quyền khiếu nại không
+
+    UUID reviewedBy;
+    String reviewedByEmail;
+
     LocalDateTime createdAt;
     LocalDateTime reviewedAt;
 }

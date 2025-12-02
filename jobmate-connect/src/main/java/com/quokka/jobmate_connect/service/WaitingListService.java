@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.service;
 
 import com.quokka.jobmate_connect.constant.RequestStatus;
+import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.waitinglist.CreateWaitingListRequest;
 import com.quokka.jobmate_connect.dto.response.waitinglist.WaitingListResponse;
 import com.quokka.jobmate_connect.entity.User;
@@ -10,15 +11,16 @@ import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.WaitingListMapper;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import com.quokka.jobmate_connect.repository.WaitingListRepository;
-import com.quokka.jobmate_connect.service.ESService.WaitingListIndexerService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,7 +30,6 @@ import java.util.UUID;
 public class WaitingListService {
     WaitingListRepository waitingListRepository;
     UserRepository userRepository;
-    WaitingListIndexerService indexer;
     WaitingListMapper waitingListMaper;
 
     public WaitingListResponse create(CreateWaitingListRequest request) {
@@ -47,6 +48,7 @@ public class WaitingListService {
                 .jobType(request.getJobType())
                 .skills(request.getSkills())
                 .expectedMinSalary(request.getExpectedMinSalary())
+                .expectedSalaryUnit(request.getExpectedSalaryUnit())
                 .latitude(user.getLatitude())
                 .longitude(user.getLongitude())
                 .searchRadius(request.getSearchRadius())
@@ -57,11 +59,6 @@ public class WaitingListService {
                 .build();
 
         waitingListRepository.save(wl);
-//        // Reload để đảm bảo user được load đầy đủ trước khi index
-//        WaitingList savedWl = waitingListRepository.findById(wl.getId())
-//                .orElseThrow(() -> new AppException(ErrorCode.INTERNAL_ERROR));
-//        indexer.index(savedWl);
-
         return waitingListMaper.toWaitingListResponse(wl);
     }
 
@@ -82,20 +79,24 @@ public class WaitingListService {
 
         if (!wl.getUser().getId().equals(userId))
             throw new RuntimeException("Bạn không có quyền");
+        waitingListRepository.deleteById(wl.getId());
 
-        wl.setStatus(RequestStatus.CLOSED);
-        waitingListRepository.save(wl);
-        // Reload để đảm bảo user được load đầy đủ trước khi index
-        WaitingList updatedWl = waitingListRepository.findById(wl.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.INTERNAL_ERROR));
-        indexer.index(updatedWl);
     }
 
+    public PageResponse<WaitingListResponse> getActiveCandidates(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<WaitingList> waitingLists = waitingListRepository.findAllByStatus(RequestStatus.PENDING, pageable);
 
-    public List<WaitingListResponse> getActiveCandidates(String jobType, String skills, BigDecimal minSalary) {
-        List<WaitingList> waitingLists = waitingListRepository.findActiveCandidates(jobType, skills, minSalary);
-        return waitingLists.stream()
+        List<WaitingListResponse> responses = waitingLists.getContent().stream()
                 .map(waitingListMaper::toWaitingListResponse)
                 .toList();
+
+        return PageResponse.<WaitingListResponse>builder()
+                .currentPage(waitingLists.getNumber())
+                .totalPages(waitingLists.getTotalPages())
+                .pageSize(waitingLists.getSize())
+                .totalElements(waitingLists.getTotalElements())
+                .data(responses)
+                .build();
     }
 }

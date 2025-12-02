@@ -8,8 +8,13 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ReportMapper {
 
-    // Chuyển Report entity -> ReportResponse DTO
-    @Mapping(source = "reporter.fullName", target = "reporterName")
+    @Mapping(source = "reporter.id", target = "reporterId")
     @Mapping(source = "reporter.email", target = "reporterEmail")
+    @Mapping(source = "reporter.fullName", target = "reporterFullName")
+    @Mapping(target = "jobTitle", ignore = true)
+    @Mapping(target = "jobOwnerId", ignore = true)
+    @Mapping(target = "jobOwnerEmail", ignore = true)
+    @Mapping(target = "jobOwnerFullName", ignore = true)
+    @Mapping(target = "reviewedByEmail", ignore = true)
     ReportResponse toReportResponse(Report report);
 }

@@ -1,6 +1,5 @@
 package com.quokka.jobmate_connect.dto.request.job;
 
-
 import com.quokka.jobmate_connect.constant.JobType;
 import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import com.quokka.jobmate_connect.entity.User;
@@ -8,8 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -21,10 +22,11 @@ public class JobCreationRequest {
     String requirements;
     String benefits;
     String location;
+    Double latitude;
+    Double longitude;
     BigDecimal salary;
     JobType jobType;
     SalaryUnitType salaryUnit;
-    LocalDateTime startAt;
     LocalDateTime deadline;
     String skills;
     User createdBy;
@@ -32,6 +34,7 @@ public class JobCreationRequest {
     String workingHours;
     String workingDays;
     String workMode;
-    String category;
+    UUID categoryId;
+    Integer targetApplicants;
     String contactPhone;
 }

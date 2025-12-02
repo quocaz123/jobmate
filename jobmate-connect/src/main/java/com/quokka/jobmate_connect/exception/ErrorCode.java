@@ -32,6 +32,8 @@ public enum ErrorCode {
     // ========== 3xxx: JOB ==========
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),
 
+    CATEGORY_NOT_FOUND(3100, "Category not found", HttpStatus.NOT_FOUND),
+
     // ========== 4xxx: APPLICATION ==========
     JOB_NOT_FOUND(4000, "Job not found", HttpStatus.NOT_FOUND),
     JOB_NOT_AVAILABLE(4001, "Job is not available for application", HttpStatus.BAD_REQUEST),
@@ -55,6 +57,7 @@ public enum ErrorCode {
 
     REPORT_NOT_FOUND(7001, "Report not found", HttpStatus.NOT_FOUND),
     REPORT_ALREADY_SUBMITTED(7002, "You have already submitted a report for this item.", HttpStatus.CONFLICT),
+    REPORTER_TOO_NEW(7003, "Your account is too new to submit reports. Please try again later.", HttpStatus.FORBIDDEN),
 
     // ========== 8xxx: AUTH / ACCOUNT STATUS ==========
     USER_BANNED(8001, "Tài khoản của bạn đã bị khóa do vi phạm tiêu chuẩn cộng đồng. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.", HttpStatus.BAD_REQUEST),

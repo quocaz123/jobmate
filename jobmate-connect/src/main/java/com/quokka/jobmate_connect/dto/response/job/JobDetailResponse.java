@@ -1,6 +1,5 @@
 package com.quokka.jobmate_connect.dto.response.job;
 
-import com.quokka.jobmate_connect.constant.JobStatus;
 import com.quokka.jobmate_connect.constant.JobType;
 import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import com.quokka.jobmate_connect.dto.response.user.EmployerResponse;
@@ -37,11 +36,13 @@ public class JobDetailResponse {
     String workingHours;
     String workingDays;
     String workMode;
-    String category;
+    String categoryName;
+    UUID categoryId;
     Integer viewsCount;
     String contactPhone;
     Float averageRating;
     Integer ratingCount;
+    Integer targetApplicants;
 
     EmployerResponse employer;
 }

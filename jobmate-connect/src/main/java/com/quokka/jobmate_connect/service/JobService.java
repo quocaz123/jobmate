@@ -1,22 +1,21 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.AuditAction;
 import com.quokka.jobmate_connect.constant.JobStatus;
+import com.quokka.jobmate_connect.constant.JobType;
 import com.quokka.jobmate_connect.constant.NotificationType;
-import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.job.JobCreationRequest;
 import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
 import com.quokka.jobmate_connect.dto.response.job.JobDetailResponse;
 import com.quokka.jobmate_connect.dto.response.job.JobResponse;
+import com.quokka.jobmate_connect.entity.Category;
 import com.quokka.jobmate_connect.entity.Job;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.JobMapper;
-import com.quokka.jobmate_connect.repository.ApplicationRepository;
-import com.quokka.jobmate_connect.repository.JobRepository;
-import com.quokka.jobmate_connect.repository.RatingRepository;
-import com.quokka.jobmate_connect.repository.UserRepository;
+import com.quokka.jobmate_connect.repository.*;
 import com.quokka.jobmate_connect.service.ESService.JobIndexerService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -47,9 +47,11 @@ public class JobService {
         ApplicationRepository applicationRepository;
         RatingRepository ratingRepository;
         JobIndexerService indexer;
+        CategoryRepository categoryRepository;
+        AuditLogService auditLogService;
+        UserRepository userRepository;
 
         static final double EARTH_RADIUS_KM = 6371.0;
-        private final UserRepository userRepository;
 
         @Transactional
         public JobResponse createJob(JobCreationRequest request) {
@@ -58,7 +60,16 @@ public class JobService {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-                double[] coordinates = geocodingService.getCoordinates(request.getLocation());
+                Double latitude = request.getLatitude();
+                Double longitude = request.getLongitude();
+                if (latitude == null || longitude == null) {
+                        double[] coordinates = geocodingService.getCoordinates(request.getLocation());
+                        latitude = coordinates[0];
+                        longitude = coordinates[1];
+                }
+
+                Integer targetApplicants = request.getTargetApplicants() != null ? request.getTargetApplicants() : 1;
+                Category category = resolveCategory(request.getCategoryId());
 
                 Job job = Job.builder()
                                 .title(request.getTitle())
@@ -66,15 +77,14 @@ public class JobService {
                                 .requirements(request.getRequirements())
                                 .benefits(request.getBenefits())
                                 .location(request.getLocation())
-                                .latitude(coordinates[0])
-                                .longitude(coordinates[1])
+                                .latitude(latitude)
+                                .longitude(longitude)
                                 .salary(request.getSalary())
                                 .salaryUnit(request.getSalaryUnit())
                                 .jobType(request.getJobType())
                                 .skills(request.getSkills())
                                 .status(JobStatus.PENDING_REVIEW)
                                 .createdBy(user)
-                                .startAt(request.getStartAt())
                                 .deadline(request.getDeadline())
                                 .createdAt(LocalDateTime.now())
 
@@ -82,13 +92,17 @@ public class JobService {
                                 .workingHours(request.getWorkingHours())
                                 .workingDays(request.getWorkingDays())
                                 .workMode(request.getWorkMode())
-                                .category(request.getCategory())
+                                .category(category)
+                                .categoryName(category != null ? category.getName() : null)
                                 .contactPhone(request.getContactPhone())
                                 .applicationCount(0)
                                 .viewsCount(0)
+                                .targetApplicants(targetApplicants)
                                 .build();
 
                 jobRepository.save(job);
+                auditLogService.record(user, AuditAction.JOB_CREATE, job.getId(),
+                                job.getTitle(), "Khởi tạo công việc mới");
 
                 notificationService.notifyAdmins("Yêu cầu duyệt công việc mới",
                                 "Người dùng " + user.getFullName() +
@@ -101,7 +115,6 @@ public class JobService {
                                 .message("Công việc '" + job.getTitle() + "' đã được tạo và đang chờ phê duyệt.")
                                 .type(NotificationType.SYSTEM)
                                 .build());
-                indexer.index(job);
 
                 return mapToJobResponseWithStats(job);
         }
@@ -134,9 +147,15 @@ public class JobService {
                 UUID userId = getUserId();
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-                Page<Job> jobPage = (status == null)
-                                ? jobRepository.findByCreatedById(userId, pageable)
-                                : jobRepository.findByCreatedByIdAndStatus(userId, status, pageable);
+                Page<Job> jobPage;
+
+                if (status == null) {
+                        jobPage = jobRepository.findByCreatedByIdAndStatusNot(userId, JobStatus.DELETED, pageable);
+                } else if (status == JobStatus.DELETED) {
+                        jobPage = Page.empty(pageable);
+                } else {
+                        jobPage = jobRepository.findByCreatedByIdAndStatus(userId, status, pageable);
+                }
 
                 List<JobResponse> responses = jobPage.getContent().stream()
                                 .map(this::mapToJobResponseWithStats)
@@ -194,7 +213,7 @@ public class JobService {
 
                 if (status == JobStatus.APPROVED) {
                         job.setStatus(JobStatus.APPROVED);
-                        message = message = "Công việc '" + job.getTitle()
+                        message = "Công việc '" + job.getTitle()
                                         + "' của bạn đã được duyệt và hiển thị trên hệ thống.";
                 } else if (status == JobStatus.REJECTED) {
                         job.setStatus(JobStatus.REJECTED);
@@ -207,12 +226,17 @@ public class JobService {
                 job.setUpdatedAt(LocalDateTime.now());
                 jobRepository.save(job);
 
+                indexer.index(job);
+
                 notificationService.sendNotification(NotificationRequest.builder()
                                 .userId(job.getCreatedBy().getId())
                                 .title(status == JobStatus.APPROVED ? "Công việc đã được duyệt"
                                                 : "Công việc bị từ chối")
                                 .message(message)
                                 .build());
+
+                auditLogService.record(userId, AuditAction.JOB_STATUS_CHANGE, job.getId(),
+                                job.getTitle(), "Trạng thái mới: " + status.name());
         }
 
         @Transactional
@@ -245,19 +269,30 @@ public class JobService {
                 job.setSalaryUnit(request.getSalaryUnit());
                 job.setJobType(request.getJobType());
                 job.setSkills(request.getSkills());
-                job.setStartAt(request.getStartAt());
                 job.setDeadline(request.getDeadline());
+
+                Category category = resolveCategory(request.getCategoryId());
 
                 job.setCompanyName(request.getCompanyName());
                 job.setWorkingHours(request.getWorkingHours());
                 job.setWorkingDays(request.getWorkingDays());
                 job.setWorkMode(request.getWorkMode());
-                job.setCategory(request.getCategory());
+                job.setCategory(category);
+                job.setCategoryName(category != null ? category.getName() : null);
+                if (request.getTargetApplicants() != null) {
+                        job.setTargetApplicants(request.getTargetApplicants());
+                }
                 job.setContactPhone(request.getContactPhone());
 
-                double[] coordinates = geocodingService.getCoordinates(request.getLocation());
-                job.setLatitude(coordinates[0]);
-                job.setLongitude(coordinates[1]);
+                Double latitude = request.getLatitude();
+                Double longitude = request.getLongitude();
+                if (latitude == null || longitude == null) {
+                        double[] coordinates = geocodingService.getCoordinates(request.getLocation());
+                        latitude = coordinates[0];
+                        longitude = coordinates[1];
+                }
+                job.setLatitude(latitude);
+                job.setLongitude(longitude);
 
                 job.setStatus(JobStatus.PENDING_REVIEW);
 
@@ -269,25 +304,64 @@ public class JobService {
                                 "Người dùng " + user.getFullName() + " đã chỉnh sửa công việc '" + job.getTitle() +
                                                 "' và gửi lại để duyệt.");
 
+                auditLogService.record(user, AuditAction.JOB_UPDATE, job.getId(),
+                                job.getTitle(), "Gửi lại để duyệt");
+
                 return mapToJobResponseWithStats(job);
         }
 
-        public PageResponse<JobResponse> getAvailableJobs(int page, int size, String keyword, String location) {
-                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-                Page<Job> jobPage;
-
-                if (keyword != null && !keyword.isEmpty()) {
-                        jobPage = jobRepository.findByTitleContainingIgnoreCaseAndStatus(keyword, JobStatus.APPROVED,
-                                        pageable);
-                } else if (location != null && !location.isEmpty()) {
-                        jobPage = jobRepository.findByLocationContainingIgnoreCaseAndStatus(location,
-                                        JobStatus.APPROVED, pageable);
-                } else {
-                        jobPage = jobRepository.findByStatus(JobStatus.APPROVED, pageable);
+        public PageResponse<JobResponse> getAvailableJobs(int page,
+                        int size,
+                        String keyword,
+                        String location,
+                        JobType jobType,
+                        String workMode,
+                        UUID categoryId,
+                        BigDecimal salaryMin,
+                        BigDecimal salaryMax) {
+                // Lấy user hiện tại để tính khoảng cách (nếu có tọa độ)
+                UUID currentUserId = null;
+                User currentUser = null;
+                try {
+                        currentUserId = getUserId();
+                        currentUser = userRepository.findById(currentUserId).orElse(null);
+                } catch (Exception ignored) {
+                        // Trường hợp không có user (public call) thì bỏ qua tính distance
                 }
 
+                final User finalCurrentUser = currentUser;
+
+                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                Page<Job> jobPage = jobRepository.searchAvailableJobs(
+                                JobStatus.APPROVED,
+                                keyword,
+                                location,
+                                jobType,
+                                (workMode != null && !workMode.isBlank()) ? workMode : null,
+                                categoryId,
+                                salaryMin,
+                                salaryMax,
+                                pageable);
+
                 List<JobResponse> responses = jobPage.getContent().stream()
-                                .map(this::mapToJobResponseWithStats)
+                                .map(job -> {
+                                        JobResponse response = mapToJobResponseWithStats(job);
+
+                                        // Tính distance nếu có đủ tọa độ user + job
+                                        if (finalCurrentUser != null &&
+                                                        finalCurrentUser.getLatitude() != null &&
+                                                        finalCurrentUser.getLongitude() != null &&
+                                                        job.getLatitude() != null &&
+                                                        job.getLongitude() != null) {
+
+                                                double distance = geocodingService.calculateDistance(
+                                                                finalCurrentUser.getLatitude(),
+                                                                finalCurrentUser.getLongitude(),
+                                                                job.getLatitude(), job.getLongitude());
+                                                response.setDistance(distance);
+                                        }
+                                        return response;
+                                })
                                 .toList();
 
                 return PageResponse.<JobResponse>builder()
@@ -297,6 +371,59 @@ public class JobService {
                                 .totalElements(jobPage.getTotalElements())
                                 .data(responses)
                                 .build();
+        }
+
+        public Void closeJob(UUID jobId) {
+
+                UUID userId = getUserId();
+
+                Job job = jobRepository.findById(jobId)
+                                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+
+                // Không phải job của employer → cấm
+                if (!job.getCreatedBy().getId().equals(userId)) {
+                        throw new AppException(ErrorCode.UNAUTHORIZED);
+                }
+
+                // Chỉ cho phép đóng khi job còn hiển thị hoặc đang chờ duyệt
+                if (job.getStatus() != JobStatus.APPROVED &&
+                                job.getStatus() != JobStatus.PENDING_REVIEW &&
+                                job.getStatus() != JobStatus.REJECTED) {
+                        throw new RuntimeException("Chỉ có thể đóng các công việc đang hiển thị hoặc chờ duyệt");
+                }
+
+                job.setStatus(JobStatus.CLOSED);
+                job.setUpdatedAt(LocalDateTime.now());
+                jobRepository.save(job);
+                auditLogService.record(userId, AuditAction.JOB_CLOSE, job.getId(),
+                                job.getTitle(), "Người đăng tự đóng job");
+                return null;
+        }
+
+        public Void deleteJob(UUID jobId) {
+
+                UUID userId = getUserId();
+
+                Job job = jobRepository.findById(jobId)
+                                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+
+                if (!job.getCreatedBy().getId().equals(userId)) {
+                        throw new AppException(ErrorCode.UNAUTHORIZED);
+                }
+
+                // Chỉ cho phép xóa khi job đang chờ duyệt hoặc bị từ chối
+                if (job.getStatus() != JobStatus.PENDING_REVIEW &&
+                                job.getStatus() != JobStatus.REJECTED && job.getStatus() != JobStatus.CLOSED
+                                && job.getStatus() != JobStatus.AUTO_CLOSED) {
+                        throw new RuntimeException("Chỉ có thể xóa các công việc đang chờ duyệt hoặc bị từ chối");
+                }
+
+                job.setStatus(JobStatus.DELETED);
+                job.setUpdatedAt(LocalDateTime.now());
+                jobRepository.save(job);
+                auditLogService.record(userId, AuditAction.JOB_DELETE, job.getId(),
+                                job.getTitle(), "Đánh dấu job đã xóa");
+                return null;
         }
 
         public JobDetailResponse getJobDetailById(UUID jobId) {
@@ -323,6 +450,14 @@ public class JobService {
                 response.setRatingCount(ratingCount != null ? ratingCount.intValue() : 0);
 
                 return response;
+        }
+
+        private Category resolveCategory(UUID categoryId) {
+                if (categoryId == null) {
+                        return null;
+                }
+                return categoryRepository.findById(categoryId)
+                                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
         }
 
         private UUID getUserId() {

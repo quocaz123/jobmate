@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.dto.request.user;
 
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,5 +25,6 @@ public class UserUpdateRequest {
     String availableDays;
     String availableTime;
     BigDecimal preferredMinSalary;
+    SalaryUnitType preferredSalaryUnit;
     String bio;
 }

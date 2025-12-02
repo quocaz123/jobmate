@@ -3,6 +3,7 @@ package com.quokka.jobmate_connect.controller;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.user.LocationRequest;
+import com.quokka.jobmate_connect.dto.request.user.PasswordUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.TwoFaUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
@@ -83,8 +84,20 @@ public class UserController {
         return ApiResponse.success(userService.updateTwoFactorStatus(request));
     }
 
+    @PutMapping("/password")
+    public ApiResponse<Void> updatePassword(@Valid @RequestBody PasswordUpdateRequest request) {
+        userService.updatePassword(request);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping("/location/auto")
     public ApiResponse<LocationResponse> getUserAutoLocation(HttpServletRequest req) {
         return ApiResponse.success(locationService.getAutoLocation(req));
+    }
+
+    @PatchMapping("/{id}/upgrade-employer")
+    public ApiResponse<Void> upgradeUserToEmployer(@PathVariable UUID id) {
+        userService.upgradeUserToEmployer(id);
+        return ApiResponse.success(null);
     }
 }

@@ -29,7 +29,7 @@ public class OtpEventConsumer {
                     <h2 style='color:#2c3e50'>Mã OTP xác thực</h2>
                     <p>Xin chào,</p>
                     <p>Mã OTP của bạn là: <strong style='font-size:24px;color:#e74c3c;background:#f8f9fa;padding:10px;border-radius:5px;display:inline-block;'>%s</strong></p>
-                    <p>Mã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+                    <p>Mã này có hiệu lực trong 3 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
                     <p>Cảm ơn bạn đã sử dụng JobMate Connect!</p>
                     <hr>
                     <p style='font-size:12px;color:#7f8c8d'>© 2025 JobMate Connect</p>

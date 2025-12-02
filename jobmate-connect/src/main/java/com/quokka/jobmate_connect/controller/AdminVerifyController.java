@@ -3,9 +3,12 @@ package com.quokka.jobmate_connect.controller;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
+import com.quokka.jobmate_connect.dto.request.user.UserStatusUpdateRequest;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationDetailResponse;
 import com.quokka.jobmate_connect.dto.response.verification.UserVerificationListResponse;
+import com.quokka.jobmate_connect.service.UserService;
 import com.quokka.jobmate_connect.service.UserVerificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +22,7 @@ import java.util.UUID;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AdminVerifyController {
     UserVerificationService userVerificationService;
+    UserService userService;
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/pending")
@@ -50,6 +54,15 @@ public class AdminVerifyController {
             @RequestParam String reason) {
         userVerificationService.rejectVerification(userId, reason);
         return ApiResponse.success("User verification rejected: " + reason);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{userId}/status")
+    public ApiResponse<Void> updateUserStatus(
+            @PathVariable UUID userId,
+            @Valid @RequestBody UserStatusUpdateRequest request) {
+        userService.updateUserStatus(userId, request);
+        return ApiResponse.success(null);
     }
 
 }

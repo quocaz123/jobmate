@@ -1,8 +1,12 @@
 package com.quokka.jobmate_connect.repository;
 
+import com.quokka.jobmate_connect.constant.RequestStatus;
 import com.quokka.jobmate_connect.entity.WaitingList;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,10 +21,6 @@ public interface WaitingListRepository extends JpaRepository<WaitingList, UUID> 
     @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.user.id = :userId")
     List<WaitingList> findByUserId(UUID userId);
 
-    // Tìm waiting list active (cho employer tìm ứng viên)
-    @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.status = 'PENDING' " +
-            "AND (:jobType IS NULL OR w.jobType = :jobType) " +
-            "AND (:skills IS NULL OR LOWER(w.skills) LIKE LOWER(CONCAT('%', :skills, '%'))) " +
-            "AND (:minSalary IS NULL OR w.expectedMinSalary <= :minSalary)")
-    List<WaitingList> findActiveCandidates(String jobType, String skills, java.math.BigDecimal minSalary);
+    @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.status = :status")
+    Page<WaitingList> findAllByStatus(@Param("status") RequestStatus status, Pageable pageable);
 }

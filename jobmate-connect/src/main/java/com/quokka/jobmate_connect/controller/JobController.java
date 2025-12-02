@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.controller;
 
 import com.quokka.jobmate_connect.constant.JobStatus;
+import com.quokka.jobmate_connect.constant.JobType;
 import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.job.JobCreationRequest;
@@ -12,6 +13,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
@@ -73,8 +75,15 @@ public class JobController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String location) {
-        return ApiResponse.success(jobService.getAvailableJobs(page, size, keyword, location));
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) JobType jobType,
+            @RequestParam(required = false) String workMode,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) BigDecimal salaryMin,
+            @RequestParam(required = false) BigDecimal salaryMax) {
+        return ApiResponse.success(
+                jobService.getAvailableJobs(page, size, keyword, location, jobType, workMode, categoryId, salaryMin,
+                        salaryMax));
     }
 
     @GetMapping("/{jobId}")
@@ -85,5 +94,15 @@ public class JobController {
     @GetMapping("/details/{jobId}")
     public ApiResponse<JobDetailResponse> getJobFullDetail(@PathVariable UUID jobId) {
         return ApiResponse.success(jobService.getJobDetailById(jobId));
+    }
+
+    @PutMapping("/{id}/close")
+    public ApiResponse<Void> closeJob(@PathVariable UUID id) {
+        return ApiResponse.success(jobService.closeJob(id));
+    }
+
+    @PutMapping("/{id}/delete")
+    public ApiResponse<Void> deleteJob(@PathVariable UUID id) {
+        return ApiResponse.success(jobService.deleteJob(id));
     }
 }

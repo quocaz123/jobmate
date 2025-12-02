@@ -1,7 +1,9 @@
 package com.quokka.jobmate_connect.service;
 
 import com.quokka.jobmate_connect.constant.ApplicationStatus;
+import com.quokka.jobmate_connect.constant.AuditAction;
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
+import com.quokka.jobmate_connect.constant.JobStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.request.application.ApplicationRequest;
 import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
@@ -49,10 +51,8 @@ public class ApplicationService {
     FileService fileService;
     FileMgtRepository fileMgtRepository;
     MatchingService matchingService;
+    AuditLogService auditLogService;
 
-    // ------------------------------------------------
-    // 🔹 Helper methods
-    // ------------------------------------------------
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
@@ -66,8 +66,47 @@ public class ApplicationService {
 
     private void updateJobApplicationCount(Job job) {
         Long appCount = applicationRepository.countByJobId(job.getId());
-        job.setApplicationCount(appCount != null ? appCount.intValue() : 0);
+        int totalApplications = appCount != null ? appCount.intValue() : 0;
+        job.setApplicationCount(totalApplications);
+
+        boolean autoClosed = false;
+        Integer targetApplicants = job.getTargetApplicants();
+        if (targetApplicants != null && targetApplicants > 0
+                && totalApplications >= targetApplicants
+                && job.getStatus() != JobStatus.CLOSED) {
+            job.setStatus(JobStatus.CLOSED);
+            job.setUpdatedAt(LocalDateTime.now());
+            autoClosed = true;
+        }
+
         jobRepository.save(job);
+
+        if (autoClosed) {
+            notificationService.sendNotification(NotificationRequest.builder()
+                    .userId(job.getCreatedBy().getId())
+                    .title("Công việc đã được đóng")
+                    .message("Công việc '" + job.getTitle() + "' đã tự động đóng vì đủ số lượng ứng viên.")
+                    .build());
+            auditLogService.record((User) null, AuditAction.JOB_STATUS_CHANGE, job.getId(),
+                    job.getTitle(),
+                    "Tự động đóng khi đạt " + totalApplications + " ứng viên");
+        }
+    }
+
+    private void ensureJobAvailable(Job job) {
+        if (job.getStatus() == JobStatus.CLOSED || job.getStatus() == JobStatus.REJECTED) {
+            throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
+        }
+
+        Integer targetApplicants = job.getTargetApplicants();
+        if (targetApplicants == null || targetApplicants <= 0) {
+            return;
+        }
+
+        Long currentCount = applicationRepository.countByJobId(job.getId());
+        if (currentCount != null && currentCount.intValue() >= targetApplicants) {
+            throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
+        }
     }
 
     // ------------------------------------------------
@@ -80,6 +119,8 @@ public class ApplicationService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         Job job = jobRepository.findById(request.getJobId())
                 .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+
+        ensureJobAvailable(job);
 
         // ✅ Kiểm tra đơn cũ
         applicationRepository.findByUserIdAndJobId(userId, job.getId()).ifPresent(existingApp -> {
@@ -137,6 +178,9 @@ public class ApplicationService {
                 .message("Bạn vừa nhận được một đơn ứng tuyển mới cho công việc: " + job.getTitle())
                 .build());
 
+        auditLogService.record(user, AuditAction.APPLICATION_CREATE, application.getId(),
+                job.getTitle(), "Ứng viên: " + user.getFullName());
+
         ApplicationResponse res = applicationMapper.toApplicationResponse(application);
         res.setMatchScore(matchScore);
         return res;
@@ -176,8 +220,7 @@ public class ApplicationService {
     // Nhà tuyển dụng xem danh sách ứng viên theo job
     // ------------------------------------------------
     public PageResponse<ApplicationListResponse> getJobApplications(
-            int page, int size, UUID jobId, ApplicationStatus status
-    ) {
+            int page, int size, UUID jobId, ApplicationStatus status) {
         UUID recruiterId = getCurrentUserId();
 
         Job job = jobRepository.findById(jobId)
@@ -235,8 +278,10 @@ public class ApplicationService {
         }
 
         app.setStatus(status);
-        if (status == ApplicationStatus.REJECTED) app.setRejectionReason(reason);
-        if (status == ApplicationStatus.CANCELLED) app.setCancelledAt(LocalDateTime.now());
+        if (status == ApplicationStatus.REJECTED)
+            app.setRejectionReason(reason);
+        if (status == ApplicationStatus.CANCELLED)
+            app.setCancelledAt(LocalDateTime.now());
 
         applicationRepository.save(app);
         updateJobApplicationCount(app.getJob());
@@ -254,6 +299,13 @@ public class ApplicationService {
                 .title("Cập nhật trạng thái đơn ứng tuyển")
                 .message(message)
                 .build());
+
+        String detail = reason != null && !reason.isBlank()
+                ? "Trạng thái: " + status.name() + " - Lý do: " + reason
+                : "Trạng thái: " + status.name();
+        auditLogService.record(recruiter, AuditAction.APPLICATION_UPDATE_STATUS, app.getId(),
+                app.getJob().getTitle() + " - " + app.getUser().getFullName(),
+                detail);
 
         double score = matchingService.calculateMatchScore(app.getUser(), app.getJob());
         ApplicationResponse res = applicationMapper.toApplicationResponse(app);
@@ -281,6 +333,8 @@ public class ApplicationService {
         app.setCancelledAt(LocalDateTime.now());
         applicationRepository.save(app);
         updateJobApplicationCount(app.getJob());
+        auditLogService.record(user, AuditAction.APPLICATION_CANCEL, app.getId(),
+                app.getJob().getTitle(), "Ứng viên hủy đơn");
     }
 
     // ------------------------------------------------

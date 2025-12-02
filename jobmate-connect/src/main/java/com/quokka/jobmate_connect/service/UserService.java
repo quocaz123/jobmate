@@ -1,11 +1,17 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.AuditAction;
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.PageResponse;
+import com.quokka.jobmate_connect.constant.NotificationType;
+import com.quokka.jobmate_connect.dto.request.notification.NotificationRequest;
+import com.quokka.jobmate_connect.kafka.dto.UserStatusChangeEvent;
+import com.quokka.jobmate_connect.kafka.topic.UserStatusEventProducer;
 import com.quokka.jobmate_connect.dto.request.user.PasswordUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.TwoFaUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
+import com.quokka.jobmate_connect.dto.request.user.UserStatusUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
 import com.quokka.jobmate_connect.dto.response.user.*;
 import com.quokka.jobmate_connect.entity.Role;
@@ -24,6 +30,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +53,9 @@ public class UserService {
     FileMgtRepository fileMgtRepository;
     GeocodingService geocodingService;
     FileMapper fileMapper;
+    AuditLogService auditLogService;
+    NotificationService notificationService;
+    UserStatusEventProducer userStatusEventProducer;
 
     public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -61,7 +71,11 @@ public class UserService {
         user.setVerificationStatus(VerificationStatus.UNVERIFIED);
         user.setStatus("ACTIVE");
 
-        return userMapper.toUserResponse(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        auditLogService.record(savedUser, AuditAction.USER_CREATE_ACCOUNT, savedUser.getId(),
+                savedUser.getEmail(), "Đăng ký tài khoản");
+
+        return userMapper.toUserResponse(savedUser);
     }
 
     public UserDetailResponse getMyInfo() {
@@ -150,7 +164,15 @@ public class UserService {
 
         userMapper.updateUser(user, request);
 
-        if (request.getAddress() != null && !request.getAddress().isEmpty()) {
+        // Ưu tiên latitude/longitude trực tiếp từ request
+        // Nếu không có, mới geocode từ address
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            // User đã cung cấp tọa độ trực tiếp, không cần geocode
+            user.setLatitude(request.getLatitude());
+            user.setLongitude(request.getLongitude());
+            log.info("Set coordinates directly: {}, {}", request.getLatitude(), request.getLongitude());
+        } else if (request.getAddress() != null && !request.getAddress().isEmpty()) {
+            // Geocode từ address nếu không có tọa độ trực tiếp
             double[] coordinates = geocodingService.getCoordinates(request.getAddress());
             user.setLatitude(coordinates[0]);
             user.setLongitude(coordinates[1]);
@@ -161,6 +183,9 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         User updatedUser = userRepository.save(user);
+        auditLogService.record(updatedUser, AuditAction.USER_UPDATE_PROFILE, updatedUser.getId(),
+                updatedUser.getFullName(), "Cập nhật thông tin cá nhân");
+
         return userMapper.toUserResponse(updatedUser);
     }
 
@@ -207,6 +232,8 @@ public class UserService {
 
         currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(currentUser);
+        auditLogService.record(currentUser, AuditAction.USER_PASSWORD_CHANGE, currentUser.getId(),
+                currentUser.getEmail(), "Đổi mật khẩu thành công");
     }
 
     public TwoFaStatusResponse updateTwoFactorStatus(TwoFaUpdateRequest request) {
@@ -236,9 +263,131 @@ public class UserService {
                 ? "Two-factor authentication has been enabled successfully."
                 : "Two-factor authentication has been disabled successfully.";
 
+        auditLogService.record(user,
+                targetEnabled ? AuditAction.USER_ENABLE_2FA : AuditAction.USER_DISABLE_2FA,
+                user.getId(),
+                user.getEmail(),
+                targetEnabled ? "Bật 2FA" : "Tắt 2FA");
+
         return TwoFaStatusResponse.builder()
                 .enabled(targetEnabled)
                 .message(message)
                 .build();
+    }
+
+    @Transactional
+    public void upgradeUserToEmployer(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new AppException(ErrorCode.USER_NOT_VERIFIED);
+        }
+
+        Set<Role> roles = user.getRoles();
+        if (roles == null) {
+            roles = new HashSet<>();
+        }
+
+        boolean alreadyEmployer = roles.stream()
+                .anyMatch(role -> "EMPLOYER".equalsIgnoreCase(role.getName()));
+        if (alreadyEmployer) {
+            throw new AppException(ErrorCode.ALREADY_EMPLOYER);
+        }
+
+        Role employerRole = roleRepository.findByName("EMPLOYER")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+
+        roles.add(employerRole);
+        user.setRoles(roles);
+        userRepository.save(user);
+        UUID actorId = getCurrentUserIdOrNull();
+        if (actorId != null && !actorId.equals(user.getId())) {
+            auditLogService.record(actorId, AuditAction.USER_PROMOTED_EMPLOYER, user.getId(),
+                    user.getEmail(), "Cấp quyền EMPLOYER");
+        } else {
+            auditLogService.record(user, AuditAction.USER_PROMOTED_EMPLOYER, user.getId(),
+                    user.getEmail(), "Cấp quyền EMPLOYER");
+        }
+    }
+
+    @Transactional
+    public void updateUserStatus(UUID userId, UserStatusUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String oldStatus = user.getStatus();
+        String newStatus = request.getStatus();
+
+        // Kiểm tra nếu status không thay đổi
+        if (newStatus.equalsIgnoreCase(oldStatus)) {
+            log.info("User {} status is already {}", userId, newStatus);
+            return;
+        }
+
+        // Cập nhật status
+        user.setStatus(newStatus);
+        userRepository.save(user);
+
+        // Lấy admin hiện tại
+        UUID adminId = getCurrentUserIdOrNull();
+        String adminInfo = adminId != null ? adminId.toString() : "SYSTEM";
+
+        // Ghi audit log
+        String actionMessage = "ACTIVE".equalsIgnoreCase(newStatus)
+                ? "Mở khóa tài khoản"
+                : "Khóa tài khoản";
+        String reason = request.getReason() != null && !request.getReason().isEmpty()
+                ? request.getReason()
+                : "Không có lý do";
+
+        auditLogService.record(adminId != null ? userRepository.findById(adminId).orElse(null) : null,
+                AuditAction.USER_STATUS_CHANGE,
+                user.getId(),
+                user.getEmail(),
+                String.format("%s bởi admin %s. Lý do: %s", actionMessage, adminInfo, reason));
+
+        // Gửi thông báo cho user
+        String title = "ACTIVE".equalsIgnoreCase(newStatus)
+                ? "Tài khoản đã được mở khóa"
+                : "Tài khoản đã bị khóa";
+        String message = "ACTIVE".equalsIgnoreCase(newStatus)
+                ? "Tài khoản của bạn đã được mở khóa. Bạn có thể sử dụng hệ thống bình thường."
+                : String.format("Tài khoản của bạn đã bị khóa. Lý do: %s", reason);
+
+        notificationService.sendNotification(NotificationRequest.builder()
+                .userId(userId)
+                .title(title)
+                .message(message)
+                .type(NotificationType.SYSTEM)
+                .build());
+
+        // Gửi email thông báo qua Kafka
+        userStatusEventProducer.sendUserStatusChangeEvent(UserStatusChangeEvent.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .status(newStatus)
+                .reason(reason)
+                .processedAt(LocalDateTime.now())
+                .build());
+
+        log.info("Admin {} updated user {} status from {} to {}", adminInfo, userId, oldStatus, newStatus);
+    }
+
+    private UUID getCurrentUserIdOrNull() {
+        try {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return null;
+            }
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof Jwt jwt) {
+                Object claim = jwt.getClaim("userId");
+                return claim != null ? UUID.fromString(String.valueOf(claim)) : null;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }

@@ -19,6 +19,7 @@ import java.util.UUID;
 public class WaitingListResponse {
     UUID id;
     UUID userId;
+    String fullName;
 
     JobType jobType;
     String skills;

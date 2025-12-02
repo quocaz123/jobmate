@@ -43,4 +43,16 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     boolean existsByUserIdAndJobIdAndStatusIn(UUID userId, UUID jobId, List<ApplicationStatus> statuses);
 
+    long countByJob_CreatedBy_Id(UUID employerId);
+
+    long countByJob_CreatedBy_IdAndStatus(UUID employerId, ApplicationStatus status);
+
+    long countByJob_CreatedBy_IdAndAppliedAtGreaterThanEqual(UUID employerId, java.time.LocalDateTime from);
+
+    @EntityGraph(attributePaths = { "job", "job.createdBy", "user" })
+    @Query("SELECT a FROM Application a WHERE a.job.createdBy.id = :employerId ORDER BY a.appliedAt DESC")
+    Page<Application> findByJob_CreatedBy_IdOrderByAppliedAtDesc(@Param("employerId") UUID employerId, Pageable pageable);
+
+    java.util.Optional<Application> findFirstByJob_IdOrderByAppliedAtDesc(UUID jobId);
+
 }

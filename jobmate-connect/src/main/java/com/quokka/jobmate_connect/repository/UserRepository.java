@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         Page<User> findByBadgeLevelOrderByTrustScoreDesc(String badgeLevel, Pageable pageable);
 
         List<User> findTop10ByOrderByTrustScoreDesc();
+
+        @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.roles r WHERE r.name = :roleName")
+        long countByRoleName(@Param("roleName") String roleName);
+
+        long countByCreatedAtGreaterThanEqual(LocalDateTime date);
+
+        @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = :roleName ORDER BY COALESCE(u.violationCount, 0) DESC, u.createdAt DESC")
+        Page<User> findTopByRoleOrderByViolationDesc(@Param("roleName") String roleName, Pageable pageable);
 
         @Query("SELECT DISTINCT u FROM User u " +
                         "LEFT JOIN u.roles r " +

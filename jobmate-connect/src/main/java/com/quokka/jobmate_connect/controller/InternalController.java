@@ -20,7 +20,6 @@ import java.util.UUID;
 public class InternalController {
     UserService userService;
 
-
     @GetMapping("/users/{userId}")
     ApiResponse<UserResponse> getProfile(@PathVariable UUID userId) {
         return ApiResponse.success(userService.getUserById(userId));

@@ -32,7 +32,7 @@ public class Report {
     User reporter;
 
     @Column(nullable = false)
-    String targetType; // "JOB", "USER", "RATING"
+    String targetType;
 
     @Column(nullable = false)
     UUID targetId;
@@ -51,6 +51,12 @@ public class Report {
 
     @Column
     LocalDateTime reviewedAt;
+
+    @Column
+    UUID reviewedBy;
+
+    @Column
+    Boolean canAppeal = true;
 
     @PrePersist
     void onCreate() {

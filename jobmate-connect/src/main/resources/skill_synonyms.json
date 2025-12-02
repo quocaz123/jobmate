@@ -1,0 +1,183 @@
+{
+  "phuc vu": [
+    "waiter", "waitress", "order", "server", "runner",
+    "phuc vu ban", "service staff", "bung be", "phuc vu nha hang",
+    "nhan vien phuc vu", "phuc vu quan cafe"
+  ],
+  "thu ngan": [
+    "cashier", "thanh toan", "tinh tien", "quay thu ngan",
+    "thu ngan sieu thi", "cash counter"
+  ],
+  "pha che": [
+    "barista", "bartender", "lam do uong", "mix do uong",
+    "pha che cafe", "pha che tra sua", "drink maker"
+  ],
+  "bep chinh": [
+    "chef", "dau bep", "cook", "head chef",
+    "bep truong", "chef manager"
+  ],
+  "phu bep": [
+    "bep phu", "kitchen helper", "kitchen staff",
+    "phu bep nha hang", "ho tro bep", "tro ly bep"
+  ],
+  "le tan": [
+    "receptionist", "front desk", "tiep tan",
+    "le tan spa", "le tan nha hang"
+  ],
+  "tap vu": [
+    "cleaner", "don ve sinh", "ve sinh toan nha",
+    "housekeeping", "don dep", "don nha"
+  ],
+  "ban hang": [
+    "sales", "ban hang retail", "ban hang shop",
+    "nhan vien tu van", "tu van ban hang", "sales assistant",
+    "telesales", "cskh", "ban hang online", "ban hang tai cho"
+  ],
+  "tu van": [
+    "consultant", "adviser", "telesales", "cskh",
+    "caller", "support agent"
+  ],
+  "soan hang": [
+    "picking", "xep hang", "sap xep kho", "phu kho",
+    "kiem hang", "kho van"
+  ],
+  "shipper": [
+    "giao hang", "delivery", "ship do an", "food delivery",
+    "grabfood", "gofood", "be delivery"
+  ],
+  "tai xe": [
+    "driver", "lai xe", "xe tai", "grabcar",
+    "truck driver", "ship xe may"
+  ],
+  "ke toan": [
+    "accountant", "ke toan tong hop", "ke toan kho",
+    "thu chi", "ketoan", "ke toan ban hang"
+  ],
+  "marketing": [
+    "digital marketing", "social media", "facebook ads",
+    "tiktok ads", "google ads", "seo", "semer",
+    "content marketing"
+  ],
+  "content": [
+    "viet bai", "copywriter", "content writer",
+    "content creator", "viet noi dung", "editor"
+  ],
+  "designer": [
+    "graphic design", "photoshop", "illustrator",
+    "ai", "thiết kế đồ họa", "creative designer"
+  ],
+  "video editor": [
+    "quay dung video", "edit video", "premiere",
+    "after effects", "dung phim"
+  ],
+  "it support": [
+    "helpdesk", "sua may tinh", "it ho tro",
+    "repair computer", "it support engineer"
+  ],
+  "lap trinh": [
+    "developer", "dev", "coder", "programmer",
+    "frontend", "backend", "java developer",
+    "php dev", "react dev", "nodejs developer"
+  ],
+  "tester": [
+    "qa qc", "manual testing", "kiem thu phan mem",
+    "test engineer", "automated tester"
+  ],
+  "gia su": [
+    "tutor", "day kem", "day them", "gia su tieng anh",
+    "gia su toan", "gia su cap 2", "gia su cap 3"
+  ],
+  "tro giang": [
+    "teaching assistant", "tro gian", "ho tro lop hoc"
+  ],
+  "spa": [
+    "massage", "cham soc da", "tri mun", "spa therapist",
+    "spa staff", "ki thuat vien spa"
+  ],
+  "nail": [
+    "nail artist", "lam mong", "ve mong", "nail salon",
+    "manicure", "pedicure"
+  ],
+  "toc": [
+    "hair stylist", "cat toc", "uốn tóc", "nhuom toc",
+    "lam toc"
+  ],
+  "dieu duong": [
+    "nurse", "y ta", "cham soc benh nhan",
+    "dieu duong vien", "ho ly"
+  ],
+  "giup viec": [
+    "oshu", "noi tro", "giup viec theo gio",
+    "housekeeping", "don nha"
+  ],
+  "cham tre": [
+    "baby sitter", "giu tre", "trong tre",
+    "nuoi day tre", "giup viec cham tre"
+  ],
+  "ldpt": [
+    "lao dong pho thong", "phu ho", "tho phu",
+    "cong nhan thoi vu", "lao dong thoi vu"
+  ],
+  "tho dien": [
+    "dien dan dung", "tho sua dien", "sua dien",
+    "tho dien nuoc"
+  ],
+  "tho nuoc": [
+    "plumber", "sua ong nuoc", "tho cap thoat nuoc"
+  ],
+  "tho co khi": [
+    "co khi", "han xi", "welding", "tho tien",
+    "tho phay", "tho gia cong"
+  ],
+  "tho xay": [
+    "tho ho", "xay dung", "tho be tong",
+    "tho xay tuong"
+  ],
+  "bao ve": [
+    "security", "security guard", "bao ve toa nha",
+    "bao ve cong trinh", "bao ve su kien"
+  ],
+  "soat ve": [
+    "kiem soat", "ticket checker", "kiem ve"
+  ],
+  "cong tac vien": [
+    "ctv", "freelancer", "cong tac vien tu do",
+    "cong tac vien ban hang"
+  ],
+  "nhap lieu": [
+    "data entry", "go phach", "nhap du lieu",
+    "data typing"
+  ],
+  "livestream": [
+    "idol live", "ban hang livestream",
+    "live ban hang", "streamer"
+  ],
+  "chup anh": [
+    "photographer", "chup san pham", "chup lookbook",
+    "chup quang cao", "photo editor"
+  ],
+  "quan ly shop online": [
+    "shopee admin", "tiktok shop", "ban hang online",
+    "quan ly don hang"
+  ],
+  "kiem don": [
+    "check don hang", "duyet don", "order checker",
+    "xet duyet don"
+  ],
+  "dich thuat": [
+    "translator", "translate", "dich tieng anh",
+    "dich tai lieu"
+  ],
+  "seo": [
+    "seoer", "toi uu cong cu tim kiem",
+    "search optimization", "google optimization"
+  ],
+  "fanpage admin": [
+    "cham fanpage", "tra loi inbox", "page manager",
+    "facebook page admin"
+  ],
+  "cv writer": [
+    "viet cv", "viet ho so", "sua cv",
+    "tu van cv"
+  ]
+}

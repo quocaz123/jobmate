@@ -13,8 +13,8 @@ import com.quokka.jobmate_connect.repository.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.*;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,14 +37,22 @@ public class ReportService {
     ReportMapper reportMapper;
     NotificationService notificationService;
     ReportProperties reportProperties;
+    AuditLogService auditLogService;
 
-    // ------------------------------------------
-    // USER gửi report
-    // ------------------------------------------
+    // -------------------------------------------------------------------
+    // USER GỬI REPORT
+    // -------------------------------------------------------------------
     @Transactional
     public ReportResponse createReport(ReportRequest request) {
+
         User reporter = getCurrentUser();
 
+        // Chặn account mới tạo < 24h
+        if (reporter.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24))) {
+            throw new AppException(ErrorCode.REPORTER_TOO_NEW);
+        }
+
+        // Chặn gửi report trùng
         if (reportRepository.existsByReporter_IdAndTargetId(reporter.getId(), request.getTargetId())) {
             throw new AppException(ErrorCode.REPORT_ALREADY_SUBMITTED);
         }
@@ -58,136 +68,185 @@ public class ReportService {
 
         reportRepository.save(report);
 
+        auditLogService.record(reporter, AuditAction.REPORT_CREATE, report.getId(),
+                report.getTargetType() + ":" + report.getTargetId(),
+                "Lý do: " + request.getReason());
+
+        // Auto review logic
         autoReviewReport(report);
 
-        if ("JOB".equalsIgnoreCase(request.getTargetType())) {
+        // Chỉ xử lý job sau khi REPORT đã được REVIEWED
+        if ("JOB".equalsIgnoreCase(request.getTargetType()) &&
+                report.getStatus() == ReportStatus.REVIEWED) {
             autoHandleJobReport(report);
         }
 
-        return reportMapper.toReportResponse(report);
+        return mapReportsWithDetails(List.of(report)).get(0);
     }
 
-    // ------------------------------------------
-    // ADMIN xem danh sách report
-    // ------------------------------------------
+    // -------------------------------------------------------------------
+    // ADMIN XEM REPORT
+    // -------------------------------------------------------------------
     public PageResponse<ReportResponse> getReports(ReportStatus status, int page, int size) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
         Page<Report> reports = (status != null)
                 ? reportRepository.findByStatus(status, pageable)
                 : reportRepository.findAll(pageable);
+
+        List<ReportResponse> data = mapReportsWithDetails(reports.getContent());
 
         return PageResponse.<ReportResponse>builder()
                 .currentPage(reports.getNumber())
                 .pageSize(size)
                 .totalElements(reports.getTotalElements())
                 .totalPages(reports.getTotalPages())
-                .data(reports.map(reportMapper::toReportResponse).getContent())
+                .data(data)
                 .build();
     }
 
-    // ------------------------------------------
-    // ADMIN duyệt / từ chối report
-    // ------------------------------------------
+    // -------------------------------------------------------------------
+    // ADMIN REVIEW REPORT
+    // -------------------------------------------------------------------
     @Transactional
     public void reviewReport(UUID reportId, boolean accept, String adminNote) {
+
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
 
+        User reviewer = getCurrentUser();
+        UUID reviewerId = reviewer.getId();
+        report.setReviewedBy(reviewerId);
+        report.setReviewedAt(LocalDateTime.now());
         report.setStatus(accept ? ReportStatus.REVIEWED : ReportStatus.REJECTED);
         report.setAdminNote(adminNote);
-        report.setReviewedAt(LocalDateTime.now());
         reportRepository.save(report);
+
+        auditLogService.record(reviewer,
+                accept ? AuditAction.REPORT_REVIEW_APPROVE : AuditAction.REPORT_REVIEW_REJECT,
+                report.getId(),
+                report.getTargetType() + ":" + report.getTargetId(),
+                adminNote);
 
         if (accept && "JOB".equalsIgnoreCase(report.getTargetType())) {
             autoHandleJobReport(report);
         }
 
-        log.info("🧾 Admin reviewed report [{}] => {}", reportId, report.getStatus());
+        log.info("Admin reviewed report [{}] => {}", reportId, report.getStatus());
     }
 
-    // ------------------------------------------
-    // Auto review report
-    // ------------------------------------------
+    // -------------------------------------------------------------------
+    // AUTO REVIEW REPORT
+    // -------------------------------------------------------------------
     private void autoReviewReport(Report report) {
-        String reason = report.getReason() != null ? report.getReason().toLowerCase() : "";
 
-        // Kiểm tra từ khóa xấu từ file config
-        boolean containsBadWord = reportProperties.getBadKeywords().stream()
-                .anyMatch(reason::contains);
+        String reason = Optional.ofNullable(report.getReason()).orElse("").toLowerCase();
+
+        // match theo mức độ: critical / medium / low
+        boolean isCritical = matchKeywordGroup(reason, "critical");
+        boolean isMedium = matchKeywordGroup(reason, "medium");
 
         long reviewedCount = reportRepository.countByTargetIdAndStatus(report.getTargetId(), ReportStatus.REVIEWED);
 
-        if (containsBadWord || reviewedCount >= 2) {
+        // auto REVIEWED logic
+        if (isCritical || (isMedium && reviewedCount >= 1) || reviewedCount >= 2) {
             report.setStatus(ReportStatus.REVIEWED);
             report.setReviewedAt(LocalDateTime.now());
+            report.setReviewedBy(null); // System reviewed
             reportRepository.save(report);
-            log.info("Auto-reviewed report [{}] marked as REVIEWED", report.getId());
+
+            auditLogService.record((User) null, AuditAction.REPORT_AUTO_REVIEW, report.getId(),
+                    report.getTargetType() + ":" + report.getTargetId(),
+                    "Auto review bởi hệ thống");
+
+            log.info("Auto-reviewed report [{}] => REVIEWED", report.getId());
         }
     }
 
-    // ------------------------------------------
-    // Auto handle job report (auto close)
-    // ------------------------------------------
+    private boolean matchKeywordGroup(String text, String groupName) {
+        List<String> list = reportProperties.getBadKeywords().get(groupName);
+        if (list == null)
+            return false;
+        return list.stream()
+                .anyMatch(k -> text.matches(".*\\b" + Pattern.quote(k.toLowerCase()) + "\\b.*"));
+    }
+
+    // -------------------------------------------------------------------
+    // AUTO HANDLE JOB REPORT
+    // -------------------------------------------------------------------
     private void autoHandleJobReport(Report report) {
+
         UUID jobId = report.getTargetId();
+
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
 
-        LocalDateTime window = LocalDateTime.now().minusDays(reportProperties.getJob().getWindowDays());
-        long validReports = reportRepository.findByTargetId(jobId).stream()
+        // Không đóng nhiều lần
+        if (job.getStatus() == JobStatus.AUTO_CLOSED)
+            return;
+
+        LocalDateTime window = LocalDateTime.now()
+                .minusDays(reportProperties.getJob().getWindowDays());
+
+        List<Report> validList = reportRepository.findByTargetId(jobId).stream()
                 .filter(r -> r.getStatus() == ReportStatus.REVIEWED)
                 .filter(r -> r.getCreatedAt().isAfter(window))
+                .toList();
+
+        // Phải có >= 2 reporter khác nhau
+        long distinctUsers = validList.stream()
+                .map(r -> r.getReporter().getId())
+                .distinct()
                 .count();
 
-        if (validReports >= reportProperties.getJob().getThreshold() && job.getStatus() != JobStatus.CLOSED) {
-            job.setStatus(JobStatus.CLOSED);
+        if (distinctUsers < 2)
+            return;
+
+        // Trọng số dựa vào trustScore
+        int weightedScore = validList.stream()
+                .mapToInt(r -> {
+                    float trust = Optional.ofNullable(r.getReporter().getTrustScore()).orElse(0f);
+                    if (trust >= 50)
+                        return 3;
+                    if (trust >= 20)
+                        return 2;
+                    return 1;
+                }).sum();
+
+        if (weightedScore >= reportProperties.getJob().getThreshold()) {
+
+            job.setStatus(JobStatus.AUTO_CLOSED);
             jobRepository.save(job);
 
             User employer = job.getCreatedBy();
-            employer.setViolationCount((employer.getViolationCount() != null ? employer.getViolationCount() : 0) + 1);
+            employer.setViolationCount(
+                    Optional.ofNullable(employer.getViolationCount()).orElse(0) + 1);
+
             userRepository.save(employer);
 
-            // kiểm tra có cần khóa account không
             autoLockEmployerIfExceedLimit(employer);
 
             notificationService.sendNotification(NotificationRequest.builder()
                     .userId(employer.getId())
-                    .title("🚫 Job của bạn đã bị đóng tự động")
-                    .message("Công việc '" + job.getTitle() + "' đã bị hệ thống đóng do nhiều báo cáo hợp lệ.")
+                    .title("⛔ Job của bạn đã bị đóng tự động")
+                    .message(
+                            "Job '" + job.getTitle() + "' bị đóng vì có " + weightedScore +
+                                    " điểm báo cáo hợp lệ từ " + distinctUsers + " người khác nhau.")
                     .build());
+            auditLogService.record((User) null, AuditAction.JOB_STATUS_CHANGE, job.getId(),
+                    job.getTitle(),
+                    "Đóng vì vượt ngưỡng báo cáo (" + weightedScore + ")");
         }
     }
 
-    // ------------------------------------------
-    // Cron job hằng ngày
-    // ------------------------------------------
-    @Scheduled(cron = "0 0 2 * * *") // chạy mỗi ngày 2h sáng
-    @Transactional
-    public void dailyReportScan() {
-        log.info("🧹 Daily report scan running...");
-        List<Job> jobs = jobRepository.findAll();
-
-        for (Job job : jobs) {
-            long validReports = reportRepository.countByTargetIdAndStatus(job.getId(), ReportStatus.REVIEWED);
-            if (validReports >= reportProperties.getJob().getThreshold() && job.getStatus() != JobStatus.AUTO_CLOSED) {
-                job.setStatus(JobStatus.CLOSED);
-                jobRepository.save(job);
-
-                User employer = job.getCreatedBy();
-                employer.setViolationCount(
-                        (employer.getViolationCount() != null ? employer.getViolationCount() : 0) + 1);
-                userRepository.save(employer);
-
-                autoLockEmployerIfExceedLimit(employer);
-            }
-        }
-    }
-
-    // ------------------------------------------
-    // Tự động khóa employer nếu vượt ngưỡng vi phạm
-    // ------------------------------------------
+    // -------------------------------------------------------------------
+    // AUTO BAN EMPLOYER
+    // -------------------------------------------------------------------
     private void autoLockEmployerIfExceedLimit(User employer) {
-        int violationCount = employer.getViolationCount() != null ? employer.getViolationCount() : 0;
+
+        int violationCount = Optional.ofNullable(employer.getViolationCount()).orElse(0);
+
         if (violationCount >= reportProperties.getEmployer().getViolationLimit()
                 && !"BANNED".equalsIgnoreCase(employer.getStatus())) {
 
@@ -196,21 +255,18 @@ public class ReportService {
 
             notificationService.sendNotification(NotificationRequest.builder()
                     .userId(employer.getId())
-                    .title("Tài khoản của bạn đã bị khóa")
-                    .message("Tài khoản đã bị khóa do có quá nhiều vi phạm ("
-                            + violationCount
-                            + " lần). Vui lòng liên hệ quản trị viên để được hỗ trợ.")
+                    .title("Tài khoản đã bị khóa")
+                    .message("Bạn đã vượt quá số vi phạm cho phép. (" + violationCount + ").")
                     .build());
-
-            log.warn("Employer [{}] locked automatically after {} violations",
-                    employer.getEmail(), violationCount);
+            auditLogService.record((User) null, AuditAction.USER_STATUS_CHANGE, employer.getId(),
+                    employer.getEmail(),
+                    "Khóa tự động do " + violationCount + " vi phạm");
         }
     }
 
-    // ------------------------------------------
+    // -------------------------------------------------------------------
     private User getCurrentUser() {
-        String email = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
@@ -218,5 +274,49 @@ public class ReportService {
     private UUID getCurrentUserId() {
         Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return UUID.fromString(jwt.getClaimAsString("userId"));
+    }
+
+    private List<ReportResponse> mapReportsWithDetails(List<Report> reportList) {
+        if (reportList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<UUID, Job> jobMap = loadJobsForReports(reportList);
+
+        return reportList.stream()
+                .map(report -> enrichReportResponse(report, jobMap.get(report.getTargetId())))
+                .toList();
+    }
+
+    private Map<UUID, Job> loadJobsForReports(List<Report> reportList) {
+        List<UUID> jobIds = reportList.stream()
+                .filter(r -> "JOB".equalsIgnoreCase(r.getTargetType()))
+                .map(Report::getTargetId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (jobIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return jobRepository.findByIdIn(jobIds).stream()
+                .collect(Collectors.toMap(Job::getId, job -> job));
+    }
+
+    private ReportResponse enrichReportResponse(Report report, Job job) {
+        ReportResponse response = reportMapper.toReportResponse(report);
+
+        if (job != null) {
+            response.setJobTitle(job.getTitle());
+            User creator = job.getCreatedBy();
+            if (creator != null) {
+                response.setJobOwnerId(creator.getId());
+                response.setJobOwnerEmail(creator.getEmail());
+                response.setJobOwnerFullName(creator.getFullName());
+            }
+        }
+
+        return response;
     }
 }

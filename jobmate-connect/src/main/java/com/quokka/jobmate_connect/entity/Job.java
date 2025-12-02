@@ -54,9 +54,6 @@ public class Job {
     JobType jobType; // FULLTIME / PARTTIME
 
     @Column()
-    LocalDateTime startAt;
-
-    @Column()
     LocalDateTime deadline;
 
     @Column(columnDefinition = "TEXT")
@@ -79,19 +76,19 @@ public class Job {
     @Column()
     String rejectionReason;
 
-    @Column(name = "is_auto_verified")
-    boolean isAutoVerified = false;
-
     @Column(name = "created_at", updatable = false)
+    @Builder.Default
     LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
+    @Builder.Default
     LocalDateTime updatedAt = LocalDateTime.now();
 
     @Column(length = 255)
     String companyName;
 
     @Column(columnDefinition = "INTEGER DEFAULT 0")
+    @Builder.Default
     Integer applicationCount = 0;
 
     @Enumerated(EnumType.STRING)
@@ -106,10 +103,19 @@ public class Job {
     @Column(length = 20)
     String workMode;
 
-    @Column(length = 100)
-    String category;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    Category category;
+
+    @Column(length = 255)
+    String categoryName;
+
+    @Column(columnDefinition = "INTEGER DEFAULT 1")
+    @Builder.Default
+    Integer targetApplicants = 1;
 
     @Column(columnDefinition = "INTEGER DEFAULT 0")
+    @Builder.Default
     Integer viewsCount = 0;
 
     @Column(length = 20)

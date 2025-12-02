@@ -7,15 +7,20 @@ import com.quokka.jobmate_connect.dto.request.user.IntrospectRequest;
 import com.quokka.jobmate_connect.dto.request.user.LogoutRequest;
 import com.quokka.jobmate_connect.dto.request.otp.VerifyOtpRequest;
 import com.quokka.jobmate_connect.dto.request.otp.ResendOtpRequest;
+import com.quokka.jobmate_connect.dto.request.user.ForgotPasswordRequest;
+import com.quokka.jobmate_connect.dto.request.user.ResetPasswordRequest;
 import com.quokka.jobmate_connect.dto.request.user.SetPasswordRequest;
 import com.quokka.jobmate_connect.dto.response.user.AuthenticationResponse;
+import com.quokka.jobmate_connect.dto.response.user.ForgotPasswordResponse;
 import com.quokka.jobmate_connect.dto.response.user.IntrospectResponse;
 import com.quokka.jobmate_connect.dto.response.otp.ResendOtpResponse;
+import com.quokka.jobmate_connect.dto.response.user.ResetPasswordResponse;
 import com.quokka.jobmate_connect.dto.response.user.SetPasswordResponse;
 import com.quokka.jobmate_connect.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.text.ParseException;
 
@@ -71,6 +76,18 @@ public class AuthController {
     ApiResponse<SetPasswordResponse> setPassword(@RequestParam("userId") String userId,
             @RequestBody SetPasswordRequest request) {
         var result = authenticationService.setPassword(userId, request);
+        return ApiResponse.success(result);
+    }
+
+    @PostMapping("/forgot-password")
+    ApiResponse<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        var result = authenticationService.forgotPassword(request);
+        return ApiResponse.success(result);
+    }
+
+    @PostMapping("/reset-password")
+    ApiResponse<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        var result = authenticationService.resetPassword(request);
         return ApiResponse.success(result);
     }
 }

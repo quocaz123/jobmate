@@ -5,6 +5,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.quokka.jobmate_connect.constant.AuditAction;
 import com.quokka.jobmate_connect.dto.request.otp.VerifyOtpRequest;
 import com.quokka.jobmate_connect.dto.request.user.AuthenticationRequest;
 import com.quokka.jobmate_connect.dto.request.user.ExchangeTokenRequest;
@@ -13,7 +14,11 @@ import com.quokka.jobmate_connect.dto.request.user.LogoutRequest;
 import com.quokka.jobmate_connect.dto.response.otp.ResendOtpResponse;
 import com.quokka.jobmate_connect.dto.response.user.AuthenticationResponse;
 import com.quokka.jobmate_connect.dto.response.user.IntrospectResponse;
+import com.quokka.jobmate_connect.dto.request.user.ForgotPasswordRequest;
+import com.quokka.jobmate_connect.dto.request.user.ResetPasswordRequest;
 import com.quokka.jobmate_connect.dto.request.user.SetPasswordRequest;
+import com.quokka.jobmate_connect.dto.response.user.ForgotPasswordResponse;
+import com.quokka.jobmate_connect.dto.response.user.ResetPasswordResponse;
 import com.quokka.jobmate_connect.dto.response.user.SetPasswordResponse;
 import com.quokka.jobmate_connect.dto.response.user.OutboundResponse;
 import com.quokka.jobmate_connect.entity.InvalidatedToken;
@@ -57,6 +62,7 @@ public class AuthenticationService {
     OtpService otpService;
     OtpEventProducer otpEventProducer;
     RoleRepository roleRepository;
+    AuditLogService auditLogService;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -125,8 +131,11 @@ public class AuthenticationService {
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
-        if (!authenticated)
+        if (!authenticated) {
+            auditLogService.record(user, AuditAction.AUTH_LOGIN_FAILED, null,
+                    user.getEmail(), "Sai mật khẩu");
             throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
 
         if (user.is_two_fa_enabled()) {
             String otp = otpService.generateOtp(user.getId().toString());
@@ -137,17 +146,23 @@ public class AuthenticationService {
                     .timestamp(LocalDateTime.now())
                     .build());
 
-            return AuthenticationResponse.builder()
+            var response = AuthenticationResponse.builder()
                     .isTwoFaEnabled(true)
                     .message("OTP has been sent to your email.")
                     .otpExpiryTime(180L)
                     .userId(user.getId().toString())
                     .build();
+            auditLogService.record(user, AuditAction.AUTH_LOGIN_SUCCESS, null,
+                    user.getEmail(), "Đăng nhập yêu cầu OTP");
+            return response;
         }
 
         var token = generateToken(user);
 
         log.info("Generated token: {}", token);
+
+        auditLogService.record(user, AuditAction.AUTH_LOGIN_SUCCESS, null,
+                user.getEmail(), "Đăng nhập bằng mật khẩu");
 
         return AuthenticationResponse.builder()
                 .token(token)
@@ -168,6 +183,10 @@ public class AuthenticationService {
                     .build();
 
             invalidatedTokenRepository.save(invalidatedToken);
+            UUID userId = extractUserId(signToken);
+            String subject = signToken.getJWTClaimsSet().getSubject();
+            auditLogService.record(userId, AuditAction.AUTH_LOGOUT, null,
+                    subject, "Đăng xuất");
         } catch (AppException e) {
             log.info("Token already invalidated");
         }
@@ -194,6 +213,9 @@ public class AuthenticationService {
 
             var token = generateToken(user);
 
+            auditLogService.record(user, AuditAction.AUTH_TOKEN_REFRESH, null,
+                    user.getEmail(), "Làm mới token");
+
             return AuthenticationResponse.builder()
                     .token(token)
                     .build();
@@ -204,7 +226,7 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse outboundAuthenticate(String code) {
-        var response = outboundClient.exchangeToken(ExchangeTokenRequest.builder()
+        var authResponse = outboundClient.exchangeToken(ExchangeTokenRequest.builder()
                 .code(code)
                 .clientId(CLIENT_ID)
                 .clientSecret(CLIENT_SECRET)
@@ -212,7 +234,7 @@ public class AuthenticationService {
                 .grantType(GRAND_TYPE)
                 .build());
 
-        OutboundResponse userInfo = outboundUserClient.getUserInfo("json", response.getAccessToken());
+        OutboundResponse userInfo = outboundUserClient.getUserInfo("json", authResponse.getAccessToken());
 
         log.info("User info: {}", userInfo);
 
@@ -233,6 +255,7 @@ public class AuthenticationService {
                     .email(userInfo.getEmail())
                     .password("")
                     .fullName(userInfo.getName())
+                    .avatarUrl(userInfo.getPicture())
                     .contactPhone("")
                     .roles(roles)
                     .build();
@@ -245,14 +268,20 @@ public class AuthenticationService {
 
         if (!hasPassword) {
             // User chưa có password, yêu cầu set password
-            return AuthenticationResponse.builder()
+            var passwordSetupResponse = AuthenticationResponse.builder()
                     .requiresPasswordSetup(true)
                     .userEmail(user.getEmail())
                     .userId(user.getId().toString())
                     .message("Please set up your password to complete registration.")
                     .token(token)
                     .build();
+            auditLogService.record(user, AuditAction.AUTH_LOGIN_SUCCESS, null,
+                    user.getEmail(), "Đăng nhập qua OAuth (chưa đặt mật khẩu)");
+            return passwordSetupResponse;
         }
+
+        auditLogService.record(user, AuditAction.AUTH_LOGIN_SUCCESS, null,
+                user.getEmail(), "Đăng nhập qua OAuth");
 
         return AuthenticationResponse.builder()
                 .token(token)
@@ -324,6 +353,9 @@ public class AuthenticationService {
 
         var token = generateToken(user);
 
+        auditLogService.record(user, AuditAction.AUTH_LOGIN_SUCCESS, null,
+                user.getEmail(), "Xác thực OTP thành công");
+
         return AuthenticationResponse.builder()
                 .token(token)
                 .isTwoFaEnabled(true)
@@ -341,6 +373,9 @@ public class AuthenticationService {
                 .otp(otp)
                 .timestamp(LocalDateTime.now())
                 .build());
+
+        auditLogService.record(user, AuditAction.AUTH_OTP_RESEND, null,
+                user.getEmail(), "Gửi lại OTP");
 
         return ResendOtpResponse.builder()
                 .message("OTP has been resent to your email.")
@@ -373,10 +408,81 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
 
+        auditLogService.record(user, AuditAction.AUTH_PASSWORD_SET, null,
+                user.getEmail(), "Thiết lập mật khẩu lần đầu");
+
         return SetPasswordResponse.builder()
                 .message("Password set successfully!")
                 .success(true)
                 .redirectUrl("/home")
+                .build();
+    }
+
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // User chưa có password thì không cần forgot password, họ chỉ cần set password
+        // lần đầu
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            throw new AppException("User chưa có mật khẩu. Vui lòng sử dụng API set-password.", ErrorCode.BAD_REQUEST);
+        }
+
+        // Generate OTP for password reset
+        String otp = otpService.generateOtp(user.getId().toString());
+
+        // Send OTP via email
+        otpEventProducer.sendOtpEvent(SendOtpEvent.builder()
+                .email(user.getEmail())
+                .otp(otp)
+                .timestamp(LocalDateTime.now())
+                .build());
+
+        auditLogService.record(user, AuditAction.AUTH_FORGOT_PASSWORD, null,
+                user.getEmail(), "Yêu cầu đặt lại mật khẩu");
+
+        return ForgotPasswordResponse.builder()
+                .message("OTP has been sent to your email for password reset.")
+                .otpExpiryTime(180L) // 3 minutes
+                .success(true)
+                .build();
+    }
+
+    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+        // Validate password confirmation
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_MISMATCH);
+        }
+
+        if (request.getNewPassword().length() < 8) {
+            throw new AppException(ErrorCode.PASSWORD_TOO_SHORT);
+        }
+
+        if (request.getNewPassword().length() > 50) {
+            throw new AppException(ErrorCode.PASSWORD_TOO_LONG);
+        }
+
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Validate OTP
+        if (!otpService.validateOtp(user.getId().toString(), request.getOtp())) {
+            auditLogService.record(user, AuditAction.AUTH_RESET_PASSWORD_FAILED, null,
+                    user.getEmail(), "OTP không hợp lệ khi đặt lại mật khẩu");
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
+
+        // Update password
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        auditLogService.record(user, AuditAction.AUTH_RESET_PASSWORD, user.getId(),
+                user.getEmail(), "Đặt lại mật khẩu thành công");
+
+        return ResetPasswordResponse.builder()
+                .message("Password has been reset successfully!")
+                .success(true)
                 .build();
     }
 
@@ -389,5 +495,14 @@ public class AuthenticationService {
             });
 
         return stringJoiner.toString();
+    }
+
+    private UUID extractUserId(SignedJWT signedJWT) {
+        try {
+            Object claim = signedJWT.getJWTClaimsSet().getClaim("userId");
+            return claim != null ? UUID.fromString(String.valueOf(claim)) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

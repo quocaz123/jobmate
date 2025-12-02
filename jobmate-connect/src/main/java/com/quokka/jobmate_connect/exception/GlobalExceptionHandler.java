@@ -15,9 +15,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     ResponseEntity<ApiResponse<?>> handleAppException(AppException exception){
         ErrorCode errorCode = exception.getErrorCode();
+        // Sử dụng custom message nếu có, nếu không thì dùng message mặc định từ ErrorCode
+        String message = exception.getMessage() != null && !exception.getMessage().equals(errorCode.getMessage())
+                ? exception.getMessage()
+                : errorCode.getMessage();
         return ResponseEntity
                 .status(errorCode.getStatusCode())
-                .body(ApiResponse.error(errorCode));
+                .body(ApiResponse.error(errorCode, message));
     }
 
     //Lỗi validation từ @Valid

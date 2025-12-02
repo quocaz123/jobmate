@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.entity;
 
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -104,6 +105,9 @@ public class User {
 
     @Column(precision = 12, scale = 2)
     BigDecimal preferredMinSalary;
+
+    @Enumerated(EnumType.STRING)
+    SalaryUnitType preferredSalaryUnit;
 
     @PrePersist
     void onCreate() {

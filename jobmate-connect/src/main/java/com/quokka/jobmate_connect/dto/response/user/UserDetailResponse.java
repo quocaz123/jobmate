@@ -1,6 +1,7 @@
 package com.quokka.jobmate_connect.dto.response.user;
 
 
+import com.quokka.jobmate_connect.constant.SalaryUnitType;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
 import com.quokka.jobmate_connect.dto.response.file.FileResponse;
 import com.quokka.jobmate_connect.dto.response.file.FileResumeResponse;
@@ -43,6 +44,7 @@ public class UserDetailResponse {
     String availableDays;
     String availableTime;
     BigDecimal preferredMinSalary;
+    SalaryUnitType preferredSalaryUnit;
 
     String bio;
     FileResumeResponse resume;
