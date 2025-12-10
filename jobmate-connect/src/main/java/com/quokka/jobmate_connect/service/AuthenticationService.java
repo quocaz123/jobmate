@@ -310,7 +310,7 @@ public class AuthenticationService {
             return jwsObject.serialize();
         } catch (JOSEException e) {
             log.error("Cannot create token", e);
-            throw new RuntimeException(e);
+            throw new AppException(ErrorCode.TOKEN_SIGN_FAILED);
         }
     }
 

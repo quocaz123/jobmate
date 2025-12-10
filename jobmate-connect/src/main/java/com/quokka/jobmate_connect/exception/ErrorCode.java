@@ -28,9 +28,12 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(2008, "Email already exists", HttpStatus.CONFLICT),
     LOCATION_ALREADY_SET(2009, "Location has already been set and cannot be changed", HttpStatus.BAD_REQUEST),
     ROLE_NOT_FOUND(2010, "Role not found", HttpStatus.NOT_FOUND),
+    MISSING_VERIFICATION_FILES(2011, "Please upload both CCCD images and avatar before verifying.", HttpStatus.BAD_REQUEST),
 
     // ========== 3xxx: JOB ==========
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),
+    JOB_INVALID_STATUS_CLOSE(3001, "Job cannot be closed in its current status", HttpStatus.BAD_REQUEST),
+    JOB_INVALID_STATUS_DELETE(3002, "Job cannot be deleted in its current status", HttpStatus.BAD_REQUEST),
 
     CATEGORY_NOT_FOUND(3100, "Category not found", HttpStatus.NOT_FOUND),
 
@@ -63,6 +66,7 @@ public enum ErrorCode {
     USER_BANNED(8001, "Tài khoản của bạn đã bị khóa do vi phạm tiêu chuẩn cộng đồng. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.", HttpStatus.BAD_REQUEST),
     USER_NOT_VERIFIED(8002, "User account is not verified", HttpStatus.FORBIDDEN),
     ALREADY_EMPLOYER(8003, "User is already an employer", HttpStatus.BAD_REQUEST),
+    TOKEN_SIGN_FAILED(8004, "Cannot create token", HttpStatus.INTERNAL_SERVER_ERROR),
 
 
     ;

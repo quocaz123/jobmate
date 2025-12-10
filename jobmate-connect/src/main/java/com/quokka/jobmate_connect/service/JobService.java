@@ -389,7 +389,7 @@ public class JobService {
                 if (job.getStatus() != JobStatus.APPROVED &&
                                 job.getStatus() != JobStatus.PENDING_REVIEW &&
                                 job.getStatus() != JobStatus.REJECTED) {
-                        throw new RuntimeException("Chỉ có thể đóng các công việc đang hiển thị hoặc chờ duyệt");
+                        throw new AppException(ErrorCode.JOB_INVALID_STATUS_CLOSE);
                 }
 
                 job.setStatus(JobStatus.CLOSED);
@@ -415,7 +415,7 @@ public class JobService {
                 if (job.getStatus() != JobStatus.PENDING_REVIEW &&
                                 job.getStatus() != JobStatus.REJECTED && job.getStatus() != JobStatus.CLOSED
                                 && job.getStatus() != JobStatus.AUTO_CLOSED) {
-                        throw new RuntimeException("Chỉ có thể xóa các công việc đang chờ duyệt hoặc bị từ chối");
+                        throw new AppException(ErrorCode.JOB_INVALID_STATUS_DELETE);
                 }
 
                 job.setStatus(JobStatus.DELETED);
@@ -443,11 +443,17 @@ public class JobService {
                 Long appCount = applicationRepository.countByJobId(job.getId());
                 response.setApplicationCount(appCount != null ? appCount.intValue() : 0);
 
-                // Tính rating
-                Double avgRating = ratingRepository.getAverageRatingByJobId(job.getId());
-                Long ratingCount = ratingRepository.countByJobId(job.getId());
-                response.setAverageRating(avgRating != null ? avgRating.floatValue() : null);
-                response.setRatingCount(ratingCount != null ? ratingCount.intValue() : 0);
+                // Tính rating theo nhà tuyển dụng (chủ job)
+                if (job.getCreatedBy() != null) {
+                        UUID ownerId = job.getCreatedBy().getId();
+                        Double avgRating = ratingRepository.getAverageRatingByUserId(ownerId);
+                        Long ratingCount = ratingRepository.countByToUserId(ownerId);
+                        response.setAverageRating(avgRating != null ? avgRating.floatValue() : null);
+                        response.setRatingCount(ratingCount != null ? ratingCount.intValue() : 0);
+                } else {
+                        response.setAverageRating(null);
+                        response.setRatingCount(0);
+                }
 
                 return response;
         }

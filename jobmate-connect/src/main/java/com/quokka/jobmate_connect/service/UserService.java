@@ -1,5 +1,6 @@
 package com.quokka.jobmate_connect.service;
 
+import com.quokka.jobmate_connect.constant.ApplicationStatus;
 import com.quokka.jobmate_connect.constant.AuditAction;
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
 import com.quokka.jobmate_connect.constant.VerificationStatus;
@@ -14,6 +15,8 @@ import com.quokka.jobmate_connect.dto.request.user.UserCreationRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserStatusUpdateRequest;
 import com.quokka.jobmate_connect.dto.request.user.UserUpdateRequest;
 import com.quokka.jobmate_connect.dto.response.user.*;
+import com.quokka.jobmate_connect.repository.ApplicationRepository;
+import com.quokka.jobmate_connect.repository.RatingRepository;
 import com.quokka.jobmate_connect.entity.Role;
 import com.quokka.jobmate_connect.entity.User;
 import com.quokka.jobmate_connect.exception.AppException;
@@ -56,6 +59,8 @@ public class UserService {
     AuditLogService auditLogService;
     NotificationService notificationService;
     UserStatusEventProducer userStatusEventProducer;
+    ApplicationRepository applicationRepository;
+    RatingRepository ratingRepository;
 
     public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -210,6 +215,33 @@ public class UserService {
         return users.stream()
                 .map(userMapper::toUserResponse)
                 .toList();
+    }
+
+    public UserStatsResponse getMyStats() {
+        Jwt auth = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID userId = UUID.fromString(auth.getClaim("userId"));
+
+        long totalApplications = applicationRepository.countByUser_Id(userId);
+        long completedApplications = applicationRepository.countByUser_IdAndStatus(userId, ApplicationStatus.ACCEPTED);
+
+        long consideredApplications = applicationRepository.countByUser_IdAndStatusIn(
+                userId, List.of(ApplicationStatus.ACCEPTED, ApplicationStatus.REJECTED, ApplicationStatus.PENDING));
+
+        double completionRate = 0.0;
+        if (consideredApplications > 0) {
+            completionRate = (double) completedApplications / consideredApplications * 100.0;
+        }
+
+        Double averageRating = ratingRepository.getAverageRatingByUserId(userId);
+        Long totalRatings = ratingRepository.countByToUserId(userId);
+
+        return UserStatsResponse.builder()
+                .totalApplications((int) totalApplications)
+                .completedApplications((int) completedApplications)
+                .completionRate(completionRate)
+                .averageRating(averageRating != null ? averageRating : 0.0)
+                .totalRatings(totalRatings != null ? totalRatings : 0L)
+                .build();
     }
 
     public void updatePassword(PasswordUpdateRequest request) {

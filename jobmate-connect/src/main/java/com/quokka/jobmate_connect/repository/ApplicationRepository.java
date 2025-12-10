@@ -55,4 +55,10 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
 
     java.util.Optional<Application> findFirstByJob_IdOrderByAppliedAtDesc(UUID jobId);
 
+    long countByUser_Id(UUID userId);
+
+    long countByUser_IdAndStatus(UUID userId, ApplicationStatus status);
+
+    long countByUser_IdAndStatusIn(UUID userId, List<ApplicationStatus> statuses);
+
 }

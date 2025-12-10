@@ -47,7 +47,6 @@ public class UserVerificationService {
         VerificationResultProducer verificationResultProducer;
         RoleRepository roleRepository;
 
-
         public void requestVerification() {
                 var jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
                 UUID userId = UUID.fromString(jwt.getClaim("userId"));
@@ -60,7 +59,7 @@ public class UserVerificationService {
                 var hasAvatar = fileMgtRepository.findByOwnerIdAndType(userId, FileTypeStatus.AVATAR);
 
                 if (!hasFront.isPresent() || !hasBack.isPresent() || !hasAvatar.isPresent()) {
-                        throw new RuntimeException("Please upload both CCCD images and avatar before verifying.");
+                        throw new AppException(ErrorCode.MISSING_VERIFICATION_FILES);
                 }
 
                 user.setVerificationStatus(VerificationStatus.PENDING);

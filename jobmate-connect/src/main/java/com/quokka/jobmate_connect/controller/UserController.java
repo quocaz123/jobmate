@@ -38,6 +38,11 @@ public class UserController {
         return ApiResponse.success(userService.getMyInfo());
     }
 
+    @GetMapping("/my-stats")
+    ApiResponse<UserStatsResponse> getMyStats() {
+        return ApiResponse.success(userService.getMyStats());
+    }
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping()
     ApiResponse<PageResponse<UserListResponse>> getAllUsers(

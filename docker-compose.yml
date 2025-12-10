@@ -14,15 +14,15 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   mongodb:
-    image: mongo:7.0
+    image: mongo:8.0.1-noble
     container_name: mongodb
+    hostname: mongodb
+    restart: always
+    ports:
+      - '27017:27017'
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
 
   redis:
     image: redis:7-alpine
