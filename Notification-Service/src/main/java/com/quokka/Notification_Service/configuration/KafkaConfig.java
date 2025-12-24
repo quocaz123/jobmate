@@ -1,5 +1,8 @@
 package com.quokka.Notification_Service.configuration;
 
+import com.quokka.Notification_Service.kafka.dto.ApplicationCreatedEvent;
+import com.quokka.Notification_Service.kafka.dto.ApplicationStatusUpdatedEvent;
+import com.quokka.Notification_Service.kafka.dto.JobInvitationEvent;
 import com.quokka.Notification_Service.kafka.dto.SendOtpEvent;
 import com.quokka.Notification_Service.kafka.dto.UserStatusChangeEvent;
 import com.quokka.Notification_Service.kafka.dto.VerificationRequestEvent;
@@ -94,6 +97,48 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, UserStatusChangeEvent> userStatusChangeEventKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, UserStatusChangeEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(userStatusChangeEventConsumerFactory());
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, JobInvitationEvent> jobInvitationEventConsumerFactory() {
+        Map<String, Object> props = baseConsumerConfigs();
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, JobInvitationEvent.class);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, JobInvitationEvent> jobInvitationEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, JobInvitationEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(jobInvitationEventConsumerFactory());
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, ApplicationCreatedEvent> applicationCreatedEventConsumerFactory() {
+        Map<String, Object> props = baseConsumerConfigs();
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ApplicationCreatedEvent.class);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, ApplicationCreatedEvent> applicationCreatedEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ApplicationCreatedEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(applicationCreatedEventConsumerFactory());
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, ApplicationStatusUpdatedEvent> applicationStatusUpdatedEventConsumerFactory() {
+        Map<String, Object> props = baseConsumerConfigs();
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ApplicationStatusUpdatedEvent.class);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, ApplicationStatusUpdatedEvent> applicationStatusUpdatedEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ApplicationStatusUpdatedEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(applicationStatusUpdatedEventConsumerFactory());
         return factory;
     }
 }

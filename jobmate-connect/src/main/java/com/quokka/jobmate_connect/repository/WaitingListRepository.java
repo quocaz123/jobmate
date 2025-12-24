@@ -18,7 +18,7 @@ public interface WaitingListRepository extends JpaRepository<WaitingList, UUID> 
     @Query("SELECT COUNT(w) FROM WaitingList w WHERE w.user.id = :userId AND w.status != 'CLOSED'")
     int countActiveByUserId(UUID userId);
 
-    @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.user.id = :userId")
+    @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.user.id = :userId AND w.status != 'CLOSED'")
     List<WaitingList> findByUserId(UUID userId);
 
     @Query("SELECT w FROM WaitingList w JOIN FETCH w.user WHERE w.status = :status")

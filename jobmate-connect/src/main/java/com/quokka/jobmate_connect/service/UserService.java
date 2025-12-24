@@ -135,7 +135,6 @@ public class UserService {
     public PageResponse<UserListResponse> getAllUsers(int page, int size, String status, String roleName) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        // Tìm Role nếu roleName được cung cấp
         Role role = null;
         if (roleName != null && !roleName.trim().isEmpty()) {
             role = roleRepository.findByName(roleName)
@@ -186,7 +185,6 @@ public class UserService {
         }
 
         user.setUpdatedAt(LocalDateTime.now());
-
         User updatedUser = userRepository.save(user);
         auditLogService.record(updatedUser, AuditAction.USER_UPDATE_PROFILE, updatedUser.getId(),
                 updatedUser.getFullName(), "Cập nhật thông tin cá nhân");
@@ -351,21 +349,16 @@ public class UserService {
         String oldStatus = user.getStatus();
         String newStatus = request.getStatus();
 
-        // Kiểm tra nếu status không thay đổi
         if (newStatus.equalsIgnoreCase(oldStatus)) {
-            log.info("User {} status is already {}", userId, newStatus);
             return;
         }
-
         // Cập nhật status
         user.setStatus(newStatus);
         userRepository.save(user);
 
-        // Lấy admin hiện tại
         UUID adminId = getCurrentUserIdOrNull();
         String adminInfo = adminId != null ? adminId.toString() : "SYSTEM";
 
-        // Ghi audit log
         String actionMessage = "ACTIVE".equalsIgnoreCase(newStatus)
                 ? "Mở khóa tài khoản"
                 : "Khóa tài khoản";
@@ -379,7 +372,6 @@ public class UserService {
                 user.getEmail(),
                 String.format("%s bởi admin %s. Lý do: %s", actionMessage, adminInfo, reason));
 
-        // Gửi thông báo cho user
         String title = "ACTIVE".equalsIgnoreCase(newStatus)
                 ? "Tài khoản đã được mở khóa"
                 : "Tài khoản đã bị khóa";
@@ -394,7 +386,6 @@ public class UserService {
                 .type(NotificationType.SYSTEM)
                 .build());
 
-        // Gửi email thông báo qua Kafka
         userStatusEventProducer.sendUserStatusChangeEvent(UserStatusChangeEvent.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -403,8 +394,6 @@ public class UserService {
                 .reason(reason)
                 .processedAt(LocalDateTime.now())
                 .build());
-
-        log.info("Admin {} updated user {} status from {} to {}", adminInfo, userId, oldStatus, newStatus);
     }
 
     private UUID getCurrentUserIdOrNull() {

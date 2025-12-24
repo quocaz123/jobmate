@@ -3,6 +3,8 @@ package com.quokka.jobmate_connect.service;
 import com.quokka.jobmate_connect.constant.FileTypeStatus;
 import com.quokka.jobmate_connect.dto.response.file.FileResponse;
 import com.quokka.jobmate_connect.entity.FileMgmt;
+import com.quokka.jobmate_connect.exception.AppException;
+import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.FileMapper;
 import com.quokka.jobmate_connect.repository.FileMgtRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
@@ -40,10 +42,11 @@ public class FileService {
                 "image/png",
                 "image/jpg",
                 "image/jpeg",
-                "application/pdf"
-        );
-        if(!ALLOWED_TYPES.contains(file.getContentType())) {
-            throw new IllegalArgumentException("File type not allowed: " + file.getContentType());
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        if (!ALLOWED_TYPES.contains(file.getContentType())) {
+            throw new AppException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
 
         // 1) Upload file mới lên S3
@@ -79,14 +82,13 @@ public class FileService {
 
         fileMgtRepository.save(fileMgmt);
 
-        if (type == FileTypeStatus.AVATAR && !isPrivate ) {
+        if (type == FileTypeStatus.AVATAR && !isPrivate) {
             String avatarUrl = publicUrl;
             userRepository.findById(userId).ifPresent(user -> {
                 user.setAvatarUrl(avatarUrl);
                 userRepository.save(user);
             });
         }
-
 
         return fileMapper.toFileMgmtResponse(fileMgmt);
     }
@@ -100,7 +102,7 @@ public class FileService {
         };
 
         FileMgmt file = fileMgtRepository.findByOwnerIdAndType(userId, type)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.FILE_NOT_FOUND));
         return s3Service.generatePresignedUrl(file.getS3Key(), expireMinutes);
     }
 }

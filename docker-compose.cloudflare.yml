@@ -1,5 +1,8 @@
 version: '3.8'
 
+# Docker Compose cho Production
+# Cloudflared đã được cài đặt trên máy host, chỉ cần expose ports để kết nối
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,16 +14,19 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   mongodb:
     image: mongo:8.0.1-noble
     hostname: mongodb
-    restart: always
+    restart: unless-stopped
     ports:
       - '27017:27017'
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
+    volumes:
+      - mongo_data:/data/db
 
   redis:
     image: redis:7-alpine
@@ -28,11 +34,13 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -47,6 +55,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: unless-stopped
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.12
@@ -59,6 +68,7 @@ services:
       - "9300:9300"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
 
   jobmate-connect:
     build:
@@ -71,19 +81,22 @@ services:
       - kafka
       - elasticsearch
     environment:
-      # Override các cấu hình "localhost" trong application.yaml để trỏ vào các container tương ứng
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobmate_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 1234
-
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     ports:
       - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/jobmate/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   notification-service:
     build:
@@ -96,10 +109,15 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     ports:
       - "8081:8081"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/notification/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   chat-service:
     build:
@@ -110,15 +128,19 @@ services:
       - mongodb
       - jobmate-connect
     environment:
-      # MongoDB connection
       SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/chat-service?authSource=admin
-
-      # Feign client tới jobmate-connect (giữ nguyên context-path /jobmate)
       FEIGN_CLIENT_CONFIG_JOBMATE_CONNECT_URL: http://jobmate-connect:8080/jobmate
       FEIGN_CLIENT_CONFIG_JOBMATE_CONNECT_CONNECT_TIMEOUT: 5000
       FEIGN_CLIENT_CONFIG_JOBMATE_CONNECT_READ_TIMEOUT: 10000
     ports:
-      - "8082:8082"
+      - "8082:8082"  # HTTP API
+      - "8099:8099"  # Socket.IO WebSocket
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/chat/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   api-gateway:
     build:
@@ -130,14 +152,12 @@ services:
       - notification-service
       - chat-service
     environment:
-      # Dùng file application-docker.yaml đã cấu hình sẵn uri theo tên service
       SPRING_CONFIG_NAME: application-docker
-      # Để WebClient trong api-gateway gọi đúng vào service jobmate-connect trong network Docker
       JOBMATE_CONNECT_URL: http://jobmate-connect:8080/jobmate
     ports:
       - "8888:8888"
+    restart: unless-stopped
     healthcheck:
-      # Check health endpoint via TCP port (Spring Boot Actuator)
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
@@ -149,3 +169,4 @@ volumes:
   mongo_data:
   redis_data:
   es_data:
+

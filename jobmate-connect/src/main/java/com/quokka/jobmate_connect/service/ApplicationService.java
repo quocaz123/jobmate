@@ -13,6 +13,9 @@ import com.quokka.jobmate_connect.dto.response.application.ApplicationResponse;
 import com.quokka.jobmate_connect.entity.Application;
 import com.quokka.jobmate_connect.entity.Job;
 import com.quokka.jobmate_connect.entity.User;
+import com.quokka.jobmate_connect.kafka.dto.ApplicationCreatedEvent;
+import com.quokka.jobmate_connect.kafka.dto.ApplicationStatusUpdatedEvent;
+import com.quokka.jobmate_connect.kafka.topic.ApplicationEventProducer;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.ApplicationMapper;
@@ -52,6 +55,7 @@ public class ApplicationService {
     FileMgtRepository fileMgtRepository;
     MatchingService matchingService;
     AuditLogService auditLogService;
+    ApplicationEventProducer applicationEventProducer;
 
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -109,9 +113,6 @@ public class ApplicationService {
         }
     }
 
-    // ------------------------------------------------
-    // ✅ Ứng viên nộp đơn vào công việc
-    // ------------------------------------------------
     @Transactional
     public ApplicationResponse applyJob(ApplicationRequest request) {
         UUID userId = getCurrentUserId();
@@ -122,7 +123,6 @@ public class ApplicationService {
 
         ensureJobAvailable(job);
 
-        // ✅ Kiểm tra đơn cũ
         applicationRepository.findByUserIdAndJobId(userId, job.getId()).ifPresent(existingApp -> {
             if (existingApp.getStatus() == ApplicationStatus.PENDING ||
                     existingApp.getStatus() == ApplicationStatus.ACCEPTED) {
@@ -145,7 +145,7 @@ public class ApplicationService {
                 hasResume = true;
                 resumeFileName = upload.getUrl().substring(upload.getUrl().lastIndexOf("/") + 1);
             } catch (Exception e) {
-                log.error("❌ Upload resume failed for user {}", user.getEmail(), e);
+                log.error("Upload resume failed for user {}", user.getEmail(), e);
                 throw new AppException(ErrorCode.INTERNAL_ERROR);
             }
         } else if (request.isUseProfileResume()) {
@@ -178,6 +178,26 @@ public class ApplicationService {
                 .message("Bạn vừa nhận được một đơn ứng tuyển mới cho công việc: " + job.getTitle())
                 .build());
 
+        // Publish event để gửi email cho employer
+        User employer = job.getCreatedBy();
+        applicationEventProducer.publishApplicationCreatedEvent(ApplicationCreatedEvent.builder()
+                .applicationId(application.getId())
+                .candidateId(user.getId())
+                .candidateEmail(user.getEmail())
+                .candidateFullName(user.getFullName())
+                .employerId(employer.getId())
+                .employerEmail(employer.getEmail())
+                .employerFullName(employer.getFullName())
+                .jobId(job.getId())
+                .jobTitle(job.getTitle())
+                .coverLetter(application.getCoverLetter())
+                .hasResume(application.isHasResume())
+                .resumeFileName(application.getResumeFileName())
+                .matchScore(matchScore)
+                .appliedAt(application.getAppliedAt())
+                .timestamp(LocalDateTime.now())
+                .build());
+
         auditLogService.record(user, AuditAction.APPLICATION_CREATE, application.getId(),
                 job.getTitle(), "Ứng viên: " + user.getFullName());
 
@@ -186,9 +206,6 @@ public class ApplicationService {
         return res;
     }
 
-    // ------------------------------------------------
-    // Ứng viên xem danh sách ứng tuyển của chính mình
-    // ------------------------------------------------
     public PageResponse<ApplicationListResponse> getMyApplications(int page, int size) {
         UUID userId = getCurrentUserId();
         Pageable pageable = PageRequest.of(page, size);
@@ -216,9 +233,6 @@ public class ApplicationService {
                 .build();
     }
 
-    // ------------------------------------------------
-    // Nhà tuyển dụng xem danh sách ứng viên theo job
-    // ------------------------------------------------
     public PageResponse<ApplicationListResponse> getJobApplications(
             int page, int size, UUID jobId, ApplicationStatus status) {
         UUID recruiterId = getCurrentUserId();
@@ -233,11 +247,9 @@ public class ApplicationService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Application> applications;
 
-        // Nếu có truyền status → lọc theo trạng thái
         if (status != null) {
             applications = applicationRepository.findByJobIdAndStatusOrderByAppliedAtDesc(jobId, status, pageable);
         }
-        // Nếu không truyền → lấy tất cả
         else {
             applications = applicationRepository.findByJobIdOrderByAppliedAtDesc(jobId, pageable);
         }
@@ -264,9 +276,6 @@ public class ApplicationService {
                 .build();
     }
 
-    // ------------------------------------------------
-    // Nhà tuyển dụng cập nhật trạng thái đơn
-    // ------------------------------------------------
     @Transactional
     public ApplicationResponse updateApplicationStatus(UUID applicationId, ApplicationStatus status, String reason) {
         Application app = applicationRepository.findById(applicationId)
@@ -300,6 +309,27 @@ public class ApplicationService {
                 .message(message)
                 .build());
 
+        // Publish event để gửi email cho candidate
+        User candidate = app.getUser();
+        User employer = app.getJob().getCreatedBy();
+        Job job = app.getJob();
+        
+        applicationEventProducer.publishApplicationStatusUpdatedEvent(ApplicationStatusUpdatedEvent.builder()
+                .applicationId(app.getId())
+                .status(status.name())
+                .candidateId(candidate.getId())
+                .candidateEmail(candidate.getEmail())
+                .candidateFullName(candidate.getFullName())
+                .employerId(employer.getId())
+                .employerEmail(employer.getEmail())
+                .employerFullName(employer.getFullName())
+                .jobId(job.getId())
+                .jobTitle(job.getTitle())
+                .reason(reason)
+                .updatedAt(LocalDateTime.now())
+                .timestamp(LocalDateTime.now())
+                .build());
+
         String detail = reason != null && !reason.isBlank()
                 ? "Trạng thái: " + status.name() + " - Lý do: " + reason
                 : "Trạng thái: " + status.name();
@@ -313,9 +343,6 @@ public class ApplicationService {
         return res;
     }
 
-    // ------------------------------------------------
-    // Ứng viên tự hủy đơn
-    // ------------------------------------------------
     @Transactional
     public void cancelApplication(UUID applicationId) {
         Application app = applicationRepository.findById(applicationId)
@@ -337,9 +364,6 @@ public class ApplicationService {
                 app.getJob().getTitle(), "Ứng viên hủy đơn");
     }
 
-    // ------------------------------------------------
-    // Xem chi tiết đơn ứng tuyển
-    // ------------------------------------------------
     @Transactional
     public ApplicationDetailResponse getApplicationDetail(UUID applicationId) {
         UUID currentUserId = getCurrentUserId();

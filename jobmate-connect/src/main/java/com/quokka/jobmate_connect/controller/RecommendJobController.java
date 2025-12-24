@@ -4,7 +4,6 @@ import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.PageResponse;
 import com.quokka.jobmate_connect.dto.response.job.JobESResponse;
 import com.quokka.jobmate_connect.dto.response.waitinglist.WaitingListRecommendResponse;
-import com.quokka.jobmate_connect.entity.eslasticsearch.JobES;
 import com.quokka.jobmate_connect.service.maching.RecommendJobsService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +30,7 @@ public class RecommendJobController {
     }
 
     @GetMapping("/users")
-    public ApiResponse<List<WaitingListRecommendResponse>> recommenUser(@RequestParam(required = false)
-                                                                        UUID jobId) {
+    public ApiResponse<List<WaitingListRecommendResponse>> recommenUser(@RequestParam UUID jobId) {
         return ApiResponse.success(recommendJobsService.recommendWaitingListForJob(jobId));
     }
 }

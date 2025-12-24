@@ -104,6 +104,40 @@ public class CategoryService {
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
     }
 
+    /**
+     * Khởi tạo categories mặc định (chỉ tạo những category chưa tồn tại).
+     * Method này được sử dụng trong initialization, không throw exception nếu
+     * category đã tồn tại.
+     * 
+     * @return Số lượng categories mới được tạo
+     */
+    public int initDefaultCategories(List<String> categoryNames) {
+        if (categoryNames == null || categoryNames.isEmpty()) {
+            return 0;
+        }
+
+        List<Category> categoriesToSave = new ArrayList<>();
+
+        for (String rawName : categoryNames) {
+            if (rawName == null || rawName.trim().isEmpty()) {
+                continue; // Bỏ qua các tên rỗng
+            }
+
+            String normalized = rawName.trim();
+
+            // Chỉ tạo category nếu chưa tồn tại
+            if (!categoryRepository.existsByNameIgnoreCase(normalized)) {
+                categoriesToSave.add(Category.builder().name(normalized).build());
+            }
+        }
+
+        if (!categoriesToSave.isEmpty()) {
+            categoryRepository.saveAll(categoriesToSave);
+        }
+
+        return categoriesToSave.size();
+    }
+
     private CategoryResponse toResponse(Category category) {
         return CategoryResponse.builder()
                 .id(category.getId())

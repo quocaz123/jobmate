@@ -1,5 +1,8 @@
 package com.quokka.jobmate_connect.configuration;
 
+import com.quokka.jobmate_connect.kafka.dto.ApplicationCreatedEvent;
+import com.quokka.jobmate_connect.kafka.dto.ApplicationStatusUpdatedEvent;
+import com.quokka.jobmate_connect.kafka.dto.JobInvitationEvent;
 import com.quokka.jobmate_connect.kafka.dto.SendOtpEvent;
 import com.quokka.jobmate_connect.kafka.dto.UserStatusChangeEvent;
 import com.quokka.jobmate_connect.kafka.dto.VerificationRequestEvent;
@@ -71,6 +74,36 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, UserStatusChangeEvent> userStatusChangeEventKafkaTemplate() {
         return new KafkaTemplate<>(userStatusChangeEventProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, JobInvitationEvent> jobInvitationEventProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, JobInvitationEvent> jobInvitationEventKafkaTemplate() {
+        return new KafkaTemplate<>(jobInvitationEventProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, ApplicationCreatedEvent> applicationCreatedEventProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, ApplicationCreatedEvent> applicationCreatedEventKafkaTemplate() {
+        return new KafkaTemplate<>(applicationCreatedEventProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, ApplicationStatusUpdatedEvent> applicationStatusUpdatedEventProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, ApplicationStatusUpdatedEvent> applicationStatusUpdatedEventKafkaTemplate() {
+        return new KafkaTemplate<>(applicationStatusUpdatedEventProducerFactory());
     }
 
 }

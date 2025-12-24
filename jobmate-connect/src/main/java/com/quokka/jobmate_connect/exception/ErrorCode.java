@@ -28,7 +28,8 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(2008, "Email already exists", HttpStatus.CONFLICT),
     LOCATION_ALREADY_SET(2009, "Location has already been set and cannot be changed", HttpStatus.BAD_REQUEST),
     ROLE_NOT_FOUND(2010, "Role not found", HttpStatus.NOT_FOUND),
-    MISSING_VERIFICATION_FILES(2011, "Please upload both CCCD images and avatar before verifying.", HttpStatus.BAD_REQUEST),
+    MISSING_VERIFICATION_FILES(2011, "Please upload both CCCD images and avatar before verifying.",
+            HttpStatus.BAD_REQUEST),
 
     // ========== 3xxx: JOB ==========
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),
@@ -49,6 +50,8 @@ public enum ErrorCode {
 
     // ========== 5xxx: FILE UPLOAD ==========
     FILE_UPLOAD_FAILED(5001, "File upload failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_FOUND(5002, "File not found", HttpStatus.NOT_FOUND),
+    FILE_TYPE_NOT_ALLOWED(5003, "File type not allowed", HttpStatus.BAD_REQUEST),
 
     // ========== 6xxx: RATING ==========
     ALREADY_EXISTS(6001, "User has already rated this user for the specified job.", HttpStatus.CONFLICT),
@@ -63,13 +66,23 @@ public enum ErrorCode {
     REPORTER_TOO_NEW(7003, "Your account is too new to submit reports. Please try again later.", HttpStatus.FORBIDDEN),
 
     // ========== 8xxx: AUTH / ACCOUNT STATUS ==========
-    USER_BANNED(8001, "Tài khoản của bạn đã bị khóa do vi phạm tiêu chuẩn cộng đồng. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.", HttpStatus.BAD_REQUEST),
+    USER_BANNED(8001,
+            "Tài khoản của bạn đã bị khóa do vi phạm tiêu chuẩn cộng đồng. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.",
+            HttpStatus.BAD_REQUEST),
     USER_NOT_VERIFIED(8002, "User account is not verified", HttpStatus.FORBIDDEN),
     ALREADY_EMPLOYER(8003, "User is already an employer", HttpStatus.BAD_REQUEST),
     TOKEN_SIGN_FAILED(8004, "Cannot create token", HttpStatus.INTERNAL_SERVER_ERROR),
 
+    // ========= 9xxx: INVITATION ==========
+    INVITE_ALREADY_SENT(9000, "Đã mời ứng viên này cho công việc này rồi", HttpStatus.CONFLICT),
+    INVITATION_NOT_FOUND(9001, "Invitation not found", HttpStatus.NOT_FOUND),
+    INVITATION_ALREADY_PROCESSED(9002, "Invitation already processed", HttpStatus.BAD_REQUEST),
 
-    ;
+    // ========= 10xxx: WAITING LIST ==========
+    WAITING_LIST_NOT_FOUND(10000, "Waiting list not found", HttpStatus.NOT_FOUND),
+    USER_ALREADY_HAS_ACTIVE_WAITING_LIST(10001, "User already has an active waiting list", HttpStatus.BAD_REQUEST),
+    WAITING_LIST_HAS_PENDING_INVITATIONS(10002, "Không thể xóa waiting list vì đang có lời mời đang chờ xử lý",
+            HttpStatus.CONFLICT);
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
         this.code = code;

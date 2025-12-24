@@ -21,6 +21,18 @@ spring:
       server:
         webflux:
           routes:
+            # ============================================
+            # WebSocket Route - Socket.IO (QUAN TRỌNG: Phải đặt TRƯỚC các HTTP routes)
+            # ============================================
+            - id: websocket_chat_service
+              uri: ws://chat-service:8099
+              predicates:
+                - Path=/socket.io/**
+              # Không dùng StripPrefix cho WebSocket - Socket.IO cần giữ nguyên path
+            
+            # ============================================
+            # HTTP Routes
+            # ============================================
             - id: identity_service
               uri: http://jobmate-connect:8080
               predicates:
@@ -30,7 +42,7 @@ spring:
                 - name: Retry
                   args:
                     retries: 3
-                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS
                     methods: GET,POST,PUT,PATCH
                     backoff:
                       firstBackoff: 50ms
@@ -48,7 +60,7 @@ spring:
                 - name: Retry
                   args:
                     retries: 3
-                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS
                     methods: GET,POST,PUT,PATCH
                     backoff:
                       firstBackoff: 50ms
@@ -66,7 +78,7 @@ spring:
                 - name: Retry
                   args:
                     retries: 3
-                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS,500,502,503,504,429
+                    statuses: INTERNAL_SERVER_ERROR,BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT,TOO_MANY_REQUESTS
                     methods: GET,POST,PUT,PATCH
                     backoff:
                       firstBackoff: 50ms
@@ -74,4 +86,16 @@ spring:
                       factor: 2
                       basedOnPreviousValue: false
                     exceptions: java.net.ConnectException,java.net.SocketTimeoutException,java.io.IOException
+
+# Actuator configuration for health check
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
 

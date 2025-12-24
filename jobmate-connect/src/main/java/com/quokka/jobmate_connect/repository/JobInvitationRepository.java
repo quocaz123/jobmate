@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public interface JobInvitationRepository extends JpaRepository<JobInvitation, UUID> {
     List<JobInvitation> findByCandidateId(UUID candidateId);
+
     List<JobInvitation> findByEmployerId(UUID employerId);
 
     List<JobInvitation> findByCandidate_IdOrderByCreatedAtDesc(UUID candidateId);
@@ -18,4 +19,12 @@ public interface JobInvitationRepository extends JpaRepository<JobInvitation, UU
     boolean existsByEmployer_IdAndCandidate_IdAndJob_Id(UUID employerId, UUID candidateId, UUID jobId);
 
     List<JobInvitation> findByCandidate_IdAndStatus(UUID candidateId, InvitationStatus status);
+
+    List<JobInvitation> findByJob_IdAndStatus(UUID jobId, InvitationStatus status);
+
+    List<JobInvitation> findByWaitingList_Id(UUID waitingListId);
+
+    boolean existsByWaitingList_IdAndStatus(UUID waitingListId, InvitationStatus status);
+
+    List<JobInvitation> findByWaitingList_IdAndStatus(UUID waitingListId, InvitationStatus status);
 }

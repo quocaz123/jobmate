@@ -9,6 +9,8 @@ import com.quokka.jobmate_connect.entity.WaitingList;
 import com.quokka.jobmate_connect.exception.AppException;
 import com.quokka.jobmate_connect.exception.ErrorCode;
 import com.quokka.jobmate_connect.mapper.WaitingListMapper;
+import com.quokka.jobmate_connect.constant.InvitationStatus;
+import com.quokka.jobmate_connect.repository.JobInvitationRepository;
 import com.quokka.jobmate_connect.repository.UserRepository;
 import com.quokka.jobmate_connect.repository.WaitingListRepository;
 import lombok.AccessLevel;
@@ -30,7 +32,8 @@ import java.util.UUID;
 public class WaitingListService {
     WaitingListRepository waitingListRepository;
     UserRepository userRepository;
-    WaitingListMapper waitingListMaper;
+    WaitingListMapper waitingListMapper;
+    JobInvitationRepository jobInvitationRepository;
 
     public WaitingListResponse create(CreateWaitingListRequest request) {
         Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -40,11 +43,11 @@ public class WaitingListService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (waitingListRepository.countActiveByUserId(userId) > 5) {
-            throw new RuntimeException("User already has an active waiting list");
+            throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_WAITING_LIST);
         }
 
         WaitingList wl = WaitingList.builder()
-                .user(user) // Sử dụng user đã load đầy đủ
+                .user(user)
                 .jobType(request.getJobType())
                 .skills(request.getSkills())
                 .expectedMinSalary(request.getExpectedMinSalary())
@@ -59,7 +62,7 @@ public class WaitingListService {
                 .build();
 
         waitingListRepository.save(wl);
-        return waitingListMaper.toWaitingListResponse(wl);
+        return waitingListMapper.toWaitingListResponse(wl);
     }
 
     public List<WaitingListResponse> getMyWaitingList() {
@@ -67,7 +70,7 @@ public class WaitingListService {
         UUID userId = UUID.fromString(jwt.getClaimAsString("userId"));
 
         return waitingListRepository.findByUserId(userId).stream()
-                .map(waitingListMaper::toWaitingListResponse)
+                .map(waitingListMapper::toWaitingListResponse)
                 .toList();
     }
 
@@ -75,12 +78,21 @@ public class WaitingListService {
         Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         UUID userId = UUID.fromString(jwt.getClaimAsString("userId"));
         WaitingList wl = waitingListRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Waiting list not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.WAITING_LIST_NOT_FOUND));
 
         if (!wl.getUser().getId().equals(userId))
-            throw new RuntimeException("Bạn không có quyền");
-        waitingListRepository.deleteById(wl.getId());
+            throw new AppException(ErrorCode.UNAUTHORIZED);
 
+        // Convert tất cả invitation PENDING của waiting list này thành EXPIRED
+        var pendingInvitations = jobInvitationRepository.findByWaitingList_IdAndStatus(id, InvitationStatus.PENDING);
+        pendingInvitations.forEach(inv -> inv.setStatus(InvitationStatus.EXPIRED));
+        if (!pendingInvitations.isEmpty()) {
+            jobInvitationRepository.saveAll(pendingInvitations);
+        }
+
+        // Soft delete: đổi trạng thái waiting list sang CLOSED (không xóa DB)
+        wl.setStatus(RequestStatus.CLOSED);
+        waitingListRepository.save(wl);
     }
 
     public PageResponse<WaitingListResponse> getActiveCandidates(int page, int size) {
@@ -88,7 +100,7 @@ public class WaitingListService {
         Page<WaitingList> waitingLists = waitingListRepository.findAllByStatus(RequestStatus.PENDING, pageable);
 
         List<WaitingListResponse> responses = waitingLists.getContent().stream()
-                .map(waitingListMaper::toWaitingListResponse)
+                .map(waitingListMapper::toWaitingListResponse)
                 .toList();
 
         return PageResponse.<WaitingListResponse>builder()

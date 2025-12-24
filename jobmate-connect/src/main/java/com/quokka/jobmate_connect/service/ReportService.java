@@ -39,9 +39,6 @@ public class ReportService {
     ReportProperties reportProperties;
     AuditLogService auditLogService;
 
-    // -------------------------------------------------------------------
-    // USER GỬI REPORT
-    // -------------------------------------------------------------------
     @Transactional
     public ReportResponse createReport(ReportRequest request) {
 
@@ -72,10 +69,8 @@ public class ReportService {
                 report.getTargetType() + ":" + report.getTargetId(),
                 "Lý do: " + request.getReason());
 
-        // Auto review logic
         autoReviewReport(report);
 
-        // Chỉ xử lý job sau khi REPORT đã được REVIEWED
         if ("JOB".equalsIgnoreCase(request.getTargetType()) &&
                 report.getStatus() == ReportStatus.REVIEWED) {
             autoHandleJobReport(report);
@@ -84,9 +79,6 @@ public class ReportService {
         return mapReportsWithDetails(List.of(report)).get(0);
     }
 
-    // -------------------------------------------------------------------
-    // ADMIN XEM REPORT
-    // -------------------------------------------------------------------
     public PageResponse<ReportResponse> getReports(ReportStatus status, int page, int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -106,9 +98,6 @@ public class ReportService {
                 .build();
     }
 
-    // -------------------------------------------------------------------
-    // ADMIN REVIEW REPORT
-    // -------------------------------------------------------------------
     @Transactional
     public void reviewReport(UUID reportId, boolean accept, String adminNote) {
 
@@ -133,12 +122,8 @@ public class ReportService {
             autoHandleJobReport(report);
         }
 
-        log.info("Admin reviewed report [{}] => {}", reportId, report.getStatus());
     }
 
-    // -------------------------------------------------------------------
-    // AUTO REVIEW REPORT
-    // -------------------------------------------------------------------
     private void autoReviewReport(Report report) {
 
         String reason = Optional.ofNullable(report.getReason()).orElse("").toLowerCase();
@@ -159,11 +144,8 @@ public class ReportService {
             auditLogService.record((User) null, AuditAction.REPORT_AUTO_REVIEW, report.getId(),
                     report.getTargetType() + ":" + report.getTargetId(),
                     "Auto review bởi hệ thống");
-
-            log.info("Auto-reviewed report [{}] => REVIEWED", report.getId());
         }
     }
-
     private boolean matchKeywordGroup(String text, String groupName) {
         List<String> list = reportProperties.getBadKeywords().get(groupName);
         if (list == null)
@@ -172,9 +154,6 @@ public class ReportService {
                 .anyMatch(k -> text.matches(".*\\b" + Pattern.quote(k.toLowerCase()) + "\\b.*"));
     }
 
-    // -------------------------------------------------------------------
-    // AUTO HANDLE JOB REPORT
-    // -------------------------------------------------------------------
     private void autoHandleJobReport(Report report) {
 
         UUID jobId = report.getTargetId();
@@ -240,9 +219,6 @@ public class ReportService {
         }
     }
 
-    // -------------------------------------------------------------------
-    // AUTO BAN EMPLOYER
-    // -------------------------------------------------------------------
     private void autoLockEmployerIfExceedLimit(User employer) {
 
         int violationCount = Optional.ofNullable(employer.getViolationCount()).orElse(0);
@@ -264,7 +240,6 @@ public class ReportService {
         }
     }
 
-    // -------------------------------------------------------------------
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)

@@ -4,6 +4,7 @@ import com.quokka.jobmate_connect.dto.ApiResponse;
 import com.quokka.jobmate_connect.dto.request.invatation.JobInvitationRequest;
 import com.quokka.jobmate_connect.dto.response.invatation.JobInvitationResponse;
 import com.quokka.jobmate_connect.service.JobInvitationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class JobInvitationController {
     JobInvitationService jobInvitationService;
 
     @PostMapping
-    ApiResponse<JobInvitationResponse> send(@RequestBody JobInvitationRequest req) {
+    ApiResponse<JobInvitationResponse> send(@Valid @RequestBody JobInvitationRequest req) {
         return ApiResponse.success(jobInvitationService.sendInvitation(req));
     }
 

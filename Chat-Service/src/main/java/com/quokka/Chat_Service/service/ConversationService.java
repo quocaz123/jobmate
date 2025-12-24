@@ -8,6 +8,7 @@ import com.quokka.Chat_Service.exception.AppException;
 import com.quokka.Chat_Service.exception.ErrorCode;
 import com.quokka.Chat_Service.mapper.ConversationMapper;
 import com.quokka.Chat_Service.repository.ConversationRepository;
+import com.quokka.Chat_Service.repository.ChatMessageRepository;
 import com.quokka.Chat_Service.repository.httpClient.ProfileClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @Slf4j
 public class ConversationService {
     ConversationRepository conversationRepository;
+    ChatMessageRepository chatMessageRepository;
     ProfileClient profileClient;
     ConversationMapper conversationMapper;
 
@@ -42,6 +44,24 @@ public class ConversationService {
         return conversations.stream()
                 .map(conversationMapper::toConversationResponse)
                 .toList();
+    }
+
+    public void deleteConversation(String conversationId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) auth.getPrincipal();
+        String userId = jwt.getClaim("userId");
+
+        var conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+
+        boolean isMember = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getUserId().equals(userId));
+        if (!isMember) {
+            throw new AppException(ErrorCode.USER_NOT_IN_CONVERSATION);
+        }
+
+        chatMessageRepository.deleteByConversationId(conversationId);
+        conversationRepository.delete(conversation);
     }
 
     public ConversationResponse create(ConversationRequest request) {

@@ -44,6 +44,7 @@ public class JobService {
         JobMapper jobMapper;
         GeocodingService geocodingService;
         NotificationService notificationService;
+        JobInvitationService jobInvitationService;
         ApplicationRepository applicationRepository;
         RatingRepository ratingRepository;
         JobIndexerService indexer;
@@ -380,12 +381,10 @@ public class JobService {
                 Job job = jobRepository.findById(jobId)
                                 .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
 
-                // Không phải job của employer → cấm
                 if (!job.getCreatedBy().getId().equals(userId)) {
                         throw new AppException(ErrorCode.UNAUTHORIZED);
                 }
 
-                // Chỉ cho phép đóng khi job còn hiển thị hoặc đang chờ duyệt
                 if (job.getStatus() != JobStatus.APPROVED &&
                                 job.getStatus() != JobStatus.PENDING_REVIEW &&
                                 job.getStatus() != JobStatus.REJECTED) {
@@ -395,13 +394,14 @@ public class JobService {
                 job.setStatus(JobStatus.CLOSED);
                 job.setUpdatedAt(LocalDateTime.now());
                 jobRepository.save(job);
+                // Hủy/expire các lời mời còn pending cho job
+                jobInvitationService.expirePendingInvitationsForJob(job);
                 auditLogService.record(userId, AuditAction.JOB_CLOSE, job.getId(),
                                 job.getTitle(), "Người đăng tự đóng job");
                 return null;
         }
 
         public Void deleteJob(UUID jobId) {
-
                 UUID userId = getUserId();
 
                 Job job = jobRepository.findById(jobId)
@@ -411,7 +411,6 @@ public class JobService {
                         throw new AppException(ErrorCode.UNAUTHORIZED);
                 }
 
-                // Chỉ cho phép xóa khi job đang chờ duyệt hoặc bị từ chối
                 if (job.getStatus() != JobStatus.PENDING_REVIEW &&
                                 job.getStatus() != JobStatus.REJECTED && job.getStatus() != JobStatus.CLOSED
                                 && job.getStatus() != JobStatus.AUTO_CLOSED) {

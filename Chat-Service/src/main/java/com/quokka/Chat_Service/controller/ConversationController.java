@@ -24,6 +24,12 @@ public class ConversationController {
         return ApiResponse.success(conversationService.create(request));
     }
 
+    @DeleteMapping("/{conversationId}")
+    public ApiResponse<Void> deleteConversation(@PathVariable String conversationId) {
+        conversationService.deleteConversation(conversationId);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping("/my-conversations")
     public ApiResponse<List<ConversationResponse>> myConversations() {
         return ApiResponse.success(conversationService.myConversations());
