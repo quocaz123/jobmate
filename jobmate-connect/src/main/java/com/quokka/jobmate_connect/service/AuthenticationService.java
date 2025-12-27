@@ -121,20 +121,35 @@ public class AuthenticationService {
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-        var user = userRepository
-                .findByEmail(request.getEmail())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        var userOptional = userRepository.findByEmail(request.getEmail());
+
+        // Dummy BCrypt hash hợp lệ để tránh timing attack khi email không tồn tại
+        // Hash này được tạo từ password "dummy" với BCrypt
+        String dummyHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+        String storedPassword = dummyHash;
+        User user = null;
+
+        if (userOptional.isPresent()) {
+            user = userOptional.get();
+            storedPassword = user.getPassword();
+        }
+
+        // Luôn thực hiện password matching để tránh timing attack
+        boolean authenticated = passwordEncoder.matches(request.getPassword(), storedPassword);
+
+        // Nếu email không tồn tại hoặc password sai, trả về cùng một thông báo
+        if (user == null || !authenticated) {
+            // Chỉ ghi audit log nếu user tồn tại (để tracking)
+            if (user != null) {
+                auditLogService.record(user, AuditAction.AUTH_LOGIN_FAILED, null,
+                        user.getEmail(), "Sai mật khẩu");
+            }
+            throw new AppException("Email hoặc mật khẩu không đúng", ErrorCode.UNAUTHENTICATED);
+        }
 
         if ("BANNED".equalsIgnoreCase(user.getStatus())) {
             throw new AppException(ErrorCode.USER_BANNED);
-        }
-
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
-
-        if (!authenticated) {
-            auditLogService.record(user, AuditAction.AUTH_LOGIN_FAILED, null,
-                    user.getEmail(), "Sai mật khẩu");
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         if (user.is_two_fa_enabled()) {

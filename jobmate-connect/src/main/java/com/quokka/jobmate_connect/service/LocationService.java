@@ -41,10 +41,20 @@ public class LocationService {
 
         if (request.getAddress() != null && (request.getLatitude() == null || request.getLongitude() == null)) {
             double[] coordinates = geocodingService.getCoordinates(request.getAddress());
+            if (coordinates == null) {
+                throw new AppException(ErrorCode.GEOCODING_FAILED);
+            }
             user.setLatitude(coordinates[0]);
             user.setLongitude(coordinates[1]);
             user.setAddress(request.getAddress());
         } else {
+            if (request.getLatitude() != null && request.getLongitude() != null) {
+                // Validate coordinates
+                if (request.getLatitude() < -90 || request.getLatitude() > 90 ||
+                    request.getLongitude() < -180 || request.getLongitude() > 180) {
+                    throw new AppException(ErrorCode.INVALID_COORDINATES);
+                }
+            }
             user.setLatitude(request.getLatitude());
             user.setLongitude(request.getLongitude());
         }

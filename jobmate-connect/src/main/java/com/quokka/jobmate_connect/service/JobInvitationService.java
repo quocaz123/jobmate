@@ -105,7 +105,8 @@ public class JobInvitationService {
 
                 if (job.getStatus() == JobStatus.CLOSED ||
                                 job.getStatus() == JobStatus.AUTO_CLOSED ||
-                                job.getStatus() == JobStatus.REJECTED) {
+                                job.getStatus() == JobStatus.REJECTED ||
+                                job.getStatus() == JobStatus.DELETED) {
                         throw new RuntimeException("Job is no longer available");
                 }
 

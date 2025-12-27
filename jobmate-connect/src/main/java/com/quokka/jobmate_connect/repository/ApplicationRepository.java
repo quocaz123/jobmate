@@ -32,6 +32,10 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     @Query("SELECT COUNT(a) FROM Application a WHERE a.job.id = :jobId AND a.status != 'CANCELLED'")
     Long countByJobId(@Param("jobId") UUID jobId);
 
+    // Đếm số lượng applications đã được chấp nhận (ACCEPTED) cho một job
+    @Query("SELECT COUNT(a) FROM Application a WHERE a.job.id = :jobId AND a.status = 'ACCEPTED'")
+    Long countAcceptedByJobId(@Param("jobId") UUID jobId);
+
     // Lấy application với eager loading job và user
     @EntityGraph(attributePaths = { "job", "user", "job.createdBy" })
     Optional<Application> findById(UUID id);
@@ -60,5 +64,9 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     long countByUser_IdAndStatus(UUID userId, ApplicationStatus status);
 
     long countByUser_IdAndStatusIn(UUID userId, List<ApplicationStatus> statuses);
+
+    // Lấy thời gian application mới nhất cho nhiều jobs
+    @Query("SELECT a.job.id, MAX(a.appliedAt) FROM Application a WHERE a.job.id IN :jobIds GROUP BY a.job.id")
+    List<Object[]> findLatestAppliedAtByJobIds(@Param("jobIds") List<UUID> jobIds);
 
 }

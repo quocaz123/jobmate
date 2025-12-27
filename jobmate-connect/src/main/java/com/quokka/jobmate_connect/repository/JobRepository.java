@@ -76,4 +76,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
      @EntityGraph(attributePaths = "createdBy")
      java.util.Optional<Job> findById(UUID id);
+
+     // Tìm tất cả job đang hoạt động của một user (APPROVED, PENDING_REVIEW)
+     @Query("SELECT j FROM Job j WHERE j.createdBy.id = :userId AND j.status IN :statuses")
+     List<Job> findByCreatedByIdAndStatusIn(@Param("userId") UUID userId,
+               @Param("statuses") Collection<JobStatus> statuses);
 }

@@ -35,6 +35,9 @@ public enum ErrorCode {
     JOB_CANNOT_BE_UPDATED(3000, "Job cannot be updated in its current status", HttpStatus.BAD_REQUEST),
     JOB_INVALID_STATUS_CLOSE(3001, "Job cannot be closed in its current status", HttpStatus.BAD_REQUEST),
     JOB_INVALID_STATUS_DELETE(3002, "Job cannot be deleted in its current status", HttpStatus.BAD_REQUEST),
+    LOCATION_REQUIRED(3003, "Location is required", HttpStatus.BAD_REQUEST),
+    INVALID_COORDINATES(3004, "Invalid latitude or longitude. Latitude must be between -90 and 90, longitude must be between -180 and 180", HttpStatus.BAD_REQUEST),
+    GEOCODING_FAILED(3005, "Cannot determine coordinates from location. Please provide valid location or coordinates", HttpStatus.BAD_REQUEST),
 
     CATEGORY_NOT_FOUND(3100, "Category not found", HttpStatus.NOT_FOUND),
 

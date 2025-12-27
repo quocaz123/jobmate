@@ -20,6 +20,7 @@ import com.quokka.jobmate_connect.service.ESService.JobIndexerService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,11 +34,14 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class JobService {
         JobRepository jobRepository;
@@ -51,6 +55,7 @@ public class JobService {
         CategoryRepository categoryRepository;
         AuditLogService auditLogService;
         UserRepository userRepository;
+        com.quokka.jobmate_connect.repository.ESRepository.JobESRepository jobESRepository;
 
         static final double EARTH_RADIUS_KM = 6371.0;
 
@@ -61,10 +66,30 @@ public class JobService {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+                // Kiểm tra user có bị banned không
+                if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+                        throw new AppException(ErrorCode.USER_BANNED);
+                }
+
+                // Validate và xử lý location và tọa độ
                 Double latitude = request.getLatitude();
                 Double longitude = request.getLongitude();
-                if (latitude == null || longitude == null) {
+
+                // Nếu có tọa độ từ request, validate chúng
+                if (latitude != null && longitude != null) {
+                        if (!isValidCoordinate(latitude, longitude)) {
+                                throw new AppException(ErrorCode.INVALID_COORDINATES);
+                        }
+                } else {
+                        // Nếu không có tọa độ, cần location để geocode
+                        if (request.getLocation() == null || request.getLocation().trim().isEmpty()) {
+                                throw new AppException(ErrorCode.LOCATION_REQUIRED);
+                        }
+
                         double[] coordinates = geocodingService.getCoordinates(request.getLocation());
+                        if (coordinates == null) {
+                                throw new AppException(ErrorCode.GEOCODING_FAILED);
+                        }
                         latitude = coordinates[0];
                         longitude = coordinates[1];
                 }
@@ -147,26 +172,82 @@ public class JobService {
         public PageResponse<JobResponse> getMyJobs(int page, int size, JobStatus status) {
                 UUID userId = getUserId();
 
-                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-                Page<Job> jobPage;
-
+                // Lấy tất cả jobs (không paginate trong query để có thể sort theo application mới nhất)
+                List<Job> allJobs;
                 if (status == null) {
-                        jobPage = jobRepository.findByCreatedByIdAndStatusNot(userId, JobStatus.DELETED, pageable);
+                        allJobs = jobRepository.findByCreatedByIdAndStatusNot(userId, JobStatus.DELETED, 
+                                PageRequest.of(0, Integer.MAX_VALUE, Sort.by("createdAt").descending())).getContent();
                 } else if (status == JobStatus.DELETED) {
-                        jobPage = Page.empty(pageable);
+                        allJobs = List.of();
                 } else {
-                        jobPage = jobRepository.findByCreatedByIdAndStatus(userId, status, pageable);
+                        allJobs = jobRepository.findByCreatedByIdAndStatus(userId, status, 
+                                PageRequest.of(0, Integer.MAX_VALUE, Sort.by("createdAt").descending())).getContent();
                 }
 
-                List<JobResponse> responses = jobPage.getContent().stream()
+                if (allJobs.isEmpty()) {
+                        return PageResponse.<JobResponse>builder()
+                                        .currentPage(page)
+                                        .totalPages(0)
+                                        .pageSize(size)
+                                        .totalElements(0)
+                                        .data(List.of())
+                                        .build();
+                }
+
+                // Lấy thời gian application mới nhất cho tất cả jobs
+                List<UUID> jobIds = allJobs.stream().map(Job::getId).toList();
+                List<Object[]> latestApplications = applicationRepository.findLatestAppliedAtByJobIds(jobIds);
+                
+                // Tạo map: jobId -> thời gian application mới nhất
+                Map<UUID, LocalDateTime> latestAppliedAtMap = new HashMap<>();
+                for (Object[] result : latestApplications) {
+                        UUID jobId = (UUID) result[0];
+                        LocalDateTime latestAppliedAt = (LocalDateTime) result[1];
+                        latestAppliedAtMap.put(jobId, latestAppliedAt);
+                }
+
+                // Sắp xếp: jobs có application mới nhất lên đầu, sau đó jobs không có application (theo createdAt)
+                final Map<UUID, LocalDateTime> finalMap = latestAppliedAtMap;
+                List<Job> sortedJobs = allJobs.stream()
+                                .sorted((a, b) -> {
+                                        LocalDateTime aLatest = finalMap.get(a.getId());
+                                        LocalDateTime bLatest = finalMap.get(b.getId());
+                                        
+                                        // Nếu cả 2 đều có application mới nhất, sort theo thời gian application (mới nhất trước)
+                                        if (aLatest != null && bLatest != null) {
+                                                return bLatest.compareTo(aLatest);
+                                        }
+                                        // Nếu chỉ a có application, a lên đầu
+                                        if (aLatest != null) {
+                                                return -1;
+                                        }
+                                        // Nếu chỉ b có application, b lên đầu
+                                        if (bLatest != null) {
+                                                return 1;
+                                        }
+                                        // Cả 2 đều không có application, sort theo createdAt (mới nhất trước)
+                                        return b.getCreatedAt().compareTo(a.getCreatedAt());
+                                })
+                                .toList();
+
+                // Paginate thủ công
+                int start = page * size;
+                int end = Math.min(start + size, sortedJobs.size());
+                List<Job> pagedJobs = start < sortedJobs.size() 
+                        ? sortedJobs.subList(start, end) 
+                        : List.of();
+
+                List<JobResponse> responses = pagedJobs.stream()
                                 .map(this::mapToJobResponseWithStats)
                                 .toList();
 
+                int totalPages = (int) Math.ceil((double) sortedJobs.size() / size);
+
                 return PageResponse.<JobResponse>builder()
                                 .currentPage(page)
-                                .totalPages(jobPage.getTotalPages())
+                                .totalPages(totalPages)
                                 .pageSize(size)
-                                .totalElements(jobPage.getTotalElements())
+                                .totalElements(sortedJobs.size())
                                 .data(responses)
                                 .build();
         }
@@ -288,10 +369,21 @@ public class JobService {
                 Double latitude = request.getLatitude();
                 Double longitude = request.getLongitude();
                 if (latitude == null || longitude == null) {
+                        if (request.getLocation() == null || request.getLocation().trim().isEmpty()) {
+                                throw new AppException(ErrorCode.LOCATION_REQUIRED);
+                        }
                         double[] coordinates = geocodingService.getCoordinates(request.getLocation());
+                        if (coordinates == null) {
+                                throw new AppException(ErrorCode.GEOCODING_FAILED);
+                        }
                         latitude = coordinates[0];
                         longitude = coordinates[1];
                 }
+
+                if (!isValidCoordinate(latitude, longitude)) {
+                        throw new AppException(ErrorCode.INVALID_COORDINATES);
+                }
+
                 job.setLatitude(latitude);
                 job.setLongitude(longitude);
 
@@ -394,6 +486,14 @@ public class JobService {
                 job.setStatus(JobStatus.CLOSED);
                 job.setUpdatedAt(LocalDateTime.now());
                 jobRepository.save(job);
+
+                // Xóa job khỏi Elasticsearch khi bị đóng
+                try {
+                        jobESRepository.deleteById(job.getId().toString());
+                } catch (Exception e) {
+                        log.warn("Không thể xóa job {} khỏi Elasticsearch: {}", job.getId(), e.getMessage());
+                }
+
                 // Hủy/expire các lời mời còn pending cho job
                 jobInvitationService.expirePendingInvitationsForJob(job);
                 auditLogService.record(userId, AuditAction.JOB_CLOSE, job.getId(),
@@ -420,6 +520,14 @@ public class JobService {
                 job.setStatus(JobStatus.DELETED);
                 job.setUpdatedAt(LocalDateTime.now());
                 jobRepository.save(job);
+
+                // Xóa job khỏi Elasticsearch khi bị xóa
+                try {
+                        jobESRepository.deleteById(job.getId().toString());
+                } catch (Exception e) {
+                        log.warn("Không thể xóa job {} khỏi Elasticsearch: {}", job.getId(), e.getMessage());
+                }
+
                 auditLogService.record(userId, AuditAction.JOB_DELETE, job.getId(),
                                 job.getTitle(), "Đánh dấu job đã xóa");
                 return null;
@@ -470,5 +578,9 @@ public class JobService {
                 Jwt jwt = (Jwt) auth.getPrincipal();
                 Object claim = jwt.getClaim("userId");
                 return UUID.fromString(String.valueOf(claim));
+        }
+
+        private boolean isValidCoordinate(double latitude, double longitude) {
+                return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
         }
 }

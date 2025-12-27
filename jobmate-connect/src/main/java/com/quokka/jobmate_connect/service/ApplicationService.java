@@ -73,11 +73,17 @@ public class ApplicationService {
         int totalApplications = appCount != null ? appCount.intValue() : 0;
         job.setApplicationCount(totalApplications);
 
+        // Đếm số lượng applications đã được chấp nhận (ACCEPTED)
+        Long acceptedCount = applicationRepository.countAcceptedByJobId(job.getId());
+        int acceptedApplications = acceptedCount != null ? acceptedCount.intValue() : 0;
+
         boolean autoClosed = false;
         Integer targetApplicants = job.getTargetApplicants();
+        // Chỉ đóng job khi đủ số lượng ứng viên đã được chấp nhận (ACCEPTED)
         if (targetApplicants != null && targetApplicants > 0
-                && totalApplications >= targetApplicants
-                && job.getStatus() != JobStatus.CLOSED) {
+                && acceptedApplications >= targetApplicants
+                && job.getStatus() != JobStatus.CLOSED
+                && job.getStatus() != JobStatus.AUTO_CLOSED) {
             job.setStatus(JobStatus.CLOSED);
             job.setUpdatedAt(LocalDateTime.now());
             autoClosed = true;
@@ -89,16 +95,18 @@ public class ApplicationService {
             notificationService.sendNotification(NotificationRequest.builder()
                     .userId(job.getCreatedBy().getId())
                     .title("Công việc đã được đóng")
-                    .message("Công việc '" + job.getTitle() + "' đã tự động đóng vì đủ số lượng ứng viên.")
+                    .message("Công việc '" + job.getTitle() + "' đã tự động đóng vì đủ số lượng ứng viên đã chấp nhận.")
                     .build());
             auditLogService.record((User) null, AuditAction.JOB_STATUS_CHANGE, job.getId(),
                     job.getTitle(),
-                    "Tự động đóng khi đạt " + totalApplications + " ứng viên");
+                    "Tự động đóng khi đạt " + acceptedApplications + " ứng viên đã chấp nhận");
         }
     }
 
     private void ensureJobAvailable(Job job) {
-        if (job.getStatus() == JobStatus.CLOSED || job.getStatus() == JobStatus.REJECTED) {
+        if (job.getStatus() == JobStatus.CLOSED ||
+                job.getStatus() == JobStatus.REJECTED ||
+                job.getStatus() == JobStatus.DELETED) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }
 
@@ -107,8 +115,9 @@ public class ApplicationService {
             return;
         }
 
-        Long currentCount = applicationRepository.countByJobId(job.getId());
-        if (currentCount != null && currentCount.intValue() >= targetApplicants) {
+        // Chỉ kiểm tra số lượng applications đã được chấp nhận (ACCEPTED)
+        Long acceptedCount = applicationRepository.countAcceptedByJobId(job.getId());
+        if (acceptedCount != null && acceptedCount.intValue() >= targetApplicants) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }
     }
@@ -118,8 +127,20 @@ public class ApplicationService {
         UUID userId = getCurrentUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Kiểm tra user có bị banned không
+        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+            throw new AppException(ErrorCode.USER_BANNED);
+        }
+
         Job job = jobRepository.findById(request.getJobId())
                 .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+
+        // Kiểm tra employer có bị banned không
+        User employer = job.getCreatedBy();
+        if (employer != null && "BANNED".equalsIgnoreCase(employer.getStatus())) {
+            throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
+        }
 
         ensureJobAvailable(job);
 
@@ -173,13 +194,12 @@ public class ApplicationService {
         double matchScore = matchingService.calculateMatchScore(user, job);
 
         notificationService.sendNotification(NotificationRequest.builder()
-                .userId(job.getCreatedBy().getId())
+                .userId(employer.getId())
                 .title("Đơn ứng tuyển mới")
                 .message("Bạn vừa nhận được một đơn ứng tuyển mới cho công việc: " + job.getTitle())
                 .build());
 
         // Publish event để gửi email cho employer
-        User employer = job.getCreatedBy();
         applicationEventProducer.publishApplicationCreatedEvent(ApplicationCreatedEvent.builder()
                 .applicationId(application.getId())
                 .candidateId(user.getId())
@@ -249,8 +269,7 @@ public class ApplicationService {
 
         if (status != null) {
             applications = applicationRepository.findByJobIdAndStatusOrderByAppliedAtDesc(jobId, status, pageable);
-        }
-        else {
+        } else {
             applications = applicationRepository.findByJobIdOrderByAppliedAtDesc(jobId, pageable);
         }
 
@@ -313,7 +332,7 @@ public class ApplicationService {
         User candidate = app.getUser();
         User employer = app.getJob().getCreatedBy();
         Job job = app.getJob();
-        
+
         applicationEventProducer.publishApplicationStatusUpdatedEvent(ApplicationStatusUpdatedEvent.builder()
                 .applicationId(app.getId())
                 .status(status.name())

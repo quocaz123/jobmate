@@ -126,6 +126,9 @@ public class RecommendJobsService {
                 NativeQuery query = NativeQuery.builder()
                                 .withQuery(q -> q.bool(b -> {
 
+                                        // --- STATUS FILTER: Chỉ lấy job APPROVED ---
+                                        b.must(m -> m.term(t -> t.field("status").value("APPROVED")));
+
                                         // --- JOB TYPE FILTER ---
                                         if (jobType != null) {
                                                 b.must(m -> m.term(t -> t.field("jobType").value(jobType)));

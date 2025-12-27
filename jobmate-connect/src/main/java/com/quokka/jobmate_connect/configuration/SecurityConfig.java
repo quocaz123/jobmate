@@ -24,12 +24,13 @@ public class SecurityConfig {
         @Autowired
         private CustomJwtDecoder customJwtDecoder;
 
+        @Autowired
+        private UserStatusFilter userStatusFilter;
+
         private final String[] PUBLIC_ENDPOINTS = {
                         "/auth/**", // login, outbound, introspect, refresh, logout, verify-otp
                         "/users/registration",
                         "/notification/email/send",
-
-
 
         };
 
@@ -38,7 +39,7 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/internal/**",
-                "/jobs/available",
+                        "/jobs/available",
 
         };
 
@@ -55,6 +56,11 @@ public class SecurityConfig {
                                                 .decoder(customJwtDecoder)
                                                 .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+
+                // Thêm filter kiểm tra banned status sau khi JWT được authenticate
+                // Filter này sẽ chạy sau OAuth2ResourceServerFilter nhờ @Order annotation
+                http.addFilterAfter(userStatusFilter,
+                                org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
                 http.csrf(AbstractHttpConfigurer::disable);
                 return http.build();
